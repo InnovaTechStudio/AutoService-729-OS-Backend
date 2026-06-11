@@ -1,8 +1,12 @@
 package com.autoserviceos.api.tenantmanagement.interfaces.rest;
 
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import com.autoserviceos.api.tenantmanagement.application.internal.WorkshopCommandService;
+import com.autoserviceos.api.tenantmanagement.application.internal.WorkshopQueryService;
+import com.autoserviceos.api.tenantmanagement.domain.model.aggregates.Workshop;
+import com.autoserviceos.api.tenantmanagement.interfaces.rest.resources.CreateWorkshopResource;
+import com.autoserviceos.api.tenantmanagement.interfaces.rest.resources.WorkshopResource;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
@@ -10,12 +14,46 @@ import java.util.List;
 @RequestMapping("/api/v1/workshops")
 public class WorkshopsController {
 
+    private final WorkshopQueryService workshopQueryService;
+    private final WorkshopCommandService workshopCommandService;
+
+    public WorkshopsController(WorkshopQueryService workshopQueryService, WorkshopCommandService workshopCommandService) {
+        this.workshopQueryService = workshopQueryService;
+        this.workshopCommandService = workshopCommandService;
+    }
+
     @GetMapping
-    public List<String> getAllWorkshops() {
-        return List.of(
-                "AutoService Central",
-                "AutoService Lima Norte",
-                "AutoService Surco"
+    public ResponseEntity<List<WorkshopResource>> getAllWorkshops() {
+        var workshops = workshopQueryService.getAllWorkshops()
+                .stream()
+                .map(this::toResource)
+                .toList();
+
+        return ResponseEntity.ok(workshops);
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<WorkshopResource> getWorkshopById(@PathVariable Long id) {
+        return workshopQueryService.getWorkshopById(id)
+                .map(workshop -> ResponseEntity.ok(toResource(workshop)))
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    @PostMapping
+    public ResponseEntity<WorkshopResource> createWorkshop(@RequestBody CreateWorkshopResource resource) {
+        var workshop = workshopCommandService.createWorkshop(resource);
+        return ResponseEntity.ok(toResource(workshop));
+    }
+
+    private WorkshopResource toResource(Workshop workshop) {
+        return new WorkshopResource(
+                workshop.getId(),
+                workshop.getName(),
+                workshop.getRuc(),
+                workshop.getAddress(),
+                workshop.getPhone(),
+                workshop.getEmail(),
+                workshop.getActive()
         );
     }
 }
