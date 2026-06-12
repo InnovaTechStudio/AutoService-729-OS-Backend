@@ -1,5 +1,10 @@
 package com.autoserviceos.api.workshopoperations.application.internal.queryservices;
 
+import com.autoserviceos.api.workshopoperations.application.queries.GetAllTasksQuery;
+import com.autoserviceos.api.workshopoperations.application.queries.GetTaskByIdQuery;
+import com.autoserviceos.api.workshopoperations.application.queries.GetTasksByMechanicIdQuery;
+import com.autoserviceos.api.workshopoperations.application.queries.GetTasksByWorkOrderIdQuery;
+import com.autoserviceos.api.workshopoperations.application.queryservices.TaskQueryService;
 import com.autoserviceos.api.workshopoperations.domain.model.aggregates.Task;
 import com.autoserviceos.api.workshopoperations.domain.model.repositories.TaskRepository;
 import org.springframework.stereotype.Service;
