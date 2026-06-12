@@ -1,0 +1,3 @@
+package com.autoserviceos.api.workshopoperations.application.commands;
+
+public record PatchTaskCommand(Long id, String status, String technicalDiagnosis, String customerExplanation, String internalObservation, String evidenceRegistered, String adminReviewStatus) {}
