@@ -1,0 +1,2 @@
+package com.autoserviceos.api.fleetmanagement.interfaces.rest.resources;
+public record VehicleResource(Long id, String plate, String brand, String model, String year, String color, String status, String image, Long customerId) {}
