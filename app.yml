@@ -1,6 +1,0 @@
-spring:
-  application:
-    name: AutoServiceOS API
-springdoc:
-  swagger-ui:
-    path: /swagger-ui.custom.html
