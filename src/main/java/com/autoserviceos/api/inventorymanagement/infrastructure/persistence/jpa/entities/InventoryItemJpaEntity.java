@@ -6,6 +6,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import java.math.BigDecimal;
 
+/** JPA entity mapped to the inventory_items table in the database. */
 @Getter
 @Entity
 @NoArgsConstructor

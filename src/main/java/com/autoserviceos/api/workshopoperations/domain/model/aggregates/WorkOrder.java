@@ -4,6 +4,9 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.UUID;
 
+/**
+ * Aggregate root managing vehicle processing folders and checklist execution progress within a tenant scope.
+ */
 public class WorkOrder {
 
     private final Long id;

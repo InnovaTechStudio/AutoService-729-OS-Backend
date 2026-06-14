@@ -1,5 +1,4 @@
 package com.autoserviceos.api.inventorymanagement.interfaces.rest.resources;
-
 import java.math.BigDecimal;
 
 public record InventoryItemResource(

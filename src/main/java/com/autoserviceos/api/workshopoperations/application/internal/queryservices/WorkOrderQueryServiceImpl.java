@@ -1,8 +1,6 @@
 package com.autoserviceos.api.workshopoperations.application.internal.queryservices;
 
-import com.autoserviceos.api.workshopoperations.application.queries.GetAllWorkOrdersQuery;
-import com.autoserviceos.api.workshopoperations.application.queries.GetWorkOrderByIdQuery;
-import com.autoserviceos.api.workshopoperations.application.queries.GetWorkOrdersByWorkshopIdQuery;
+import com.autoserviceos.api.workshopoperations.application.queries.*;
 import com.autoserviceos.api.workshopoperations.application.queryservices.WorkOrderQueryService;
 import com.autoserviceos.api.workshopoperations.domain.model.aggregates.WorkOrder;
 import com.autoserviceos.api.workshopoperations.domain.model.repositories.WorkOrderRepository;
@@ -12,6 +10,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.Optional;
 
+/**
+ * Implementation executing read-only database queries for work order tracking folders.
+ */
 @Service
 @Transactional(readOnly = true)
 public class WorkOrderQueryServiceImpl implements WorkOrderQueryService {

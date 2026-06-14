@@ -1,4 +1,3 @@
 package com.autoserviceos.api.workshopoperations.application.queries;
 
-public record GetTasksByWorkOrderIdQuery(Long workOrderId) {
-}
+public record GetTasksByWorkOrderIdQuery(Long workOrderId) {}
