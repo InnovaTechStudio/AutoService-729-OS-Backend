@@ -1,13 +1,6 @@
 package com.autoserviceos.api.staffcoordination.interfaces.rest.resources;
 
 public record MechanicResource(
-        Long id,
-        String firstName,
-        String lastName,
-        String email,
-        String phone,
-        String specialty,
-        Long workshopId,
-        Boolean active
-) {
-}
+        Long id, String fullName, String specialty,
+        Integer maxCapacity, String email, String workshopId
+) {}

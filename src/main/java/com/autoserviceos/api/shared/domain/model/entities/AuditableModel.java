@@ -10,6 +10,10 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.util.Date;
 
+/**
+ * Base class for all JPA entities that require auditing.
+ * Automatically populates the createdAt and updatedAt fields when an entity is persisted or updated.
+ */
 @Getter
 @MappedSuperclass
 @EntityListeners(AuditingEntityListener.class)

@@ -1,3 +1,3 @@
 package com.autoserviceos.api.inventorymanagement.application.queries;
-
-public record GetAllInventoryItemsQuery() { }
+/** Query to retrieve all inventory items registered in the catalog. */
+public record GetAllInventoryItemsQuery() {}

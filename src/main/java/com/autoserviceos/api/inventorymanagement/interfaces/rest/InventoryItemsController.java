@@ -14,6 +14,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+/**
+ * Exposes RESTful endpoints for managing warehouse inventory items.
+ */
 @RestController
 @RequestMapping("/api/v1/inventory-items")
 @Tag(name = "Inventory Items", description = "Endpoints for managing warehouse catalog and stock")

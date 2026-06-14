@@ -1,13 +1,10 @@
 package com.autoserviceos.api.workshopoperations.interfaces.rest;
 
-import com.autoserviceos.api.workshopoperations.application.commands.CreateWorkOrderCommand;
-import com.autoserviceos.api.workshopoperations.application.commands.UpdateWorkOrderCommand;
+import com.autoserviceos.api.workshopoperations.application.commands.*;
 import com.autoserviceos.api.workshopoperations.application.commandservices.WorkOrderCommandService;
-import com.autoserviceos.api.workshopoperations.application.queries.GetWorkOrderByIdQuery;
-import com.autoserviceos.api.workshopoperations.application.queries.GetWorkOrdersByWorkshopIdQuery;
+import com.autoserviceos.api.workshopoperations.application.queries.*;
 import com.autoserviceos.api.workshopoperations.application.queryservices.WorkOrderQueryService;
-import com.autoserviceos.api.workshopoperations.interfaces.rest.resources.CreateWorkOrderResource;
-import com.autoserviceos.api.workshopoperations.interfaces.rest.resources.UpdateWorkOrderResource;
+import com.autoserviceos.api.workshopoperations.interfaces.rest.resources.*;
 import io.jsonwebtoken.Claims;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -16,6 +13,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
+/**
+ * Exposes RESTful endpoints for initiating maintenance folders and checklist tracking.
+ */
 @RestController
 @RequestMapping("/api/v1/work-orders")
 @Tag(name = "Work Orders", description = "Endpoints for managing vehicle maintenance folders")
