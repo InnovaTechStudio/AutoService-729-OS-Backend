@@ -1,0 +1,17 @@
+runtime: java
+env: flex
+
+runtime_config:
+  operating_system: ubuntu22
+  runtime_version: "21"
+
+resources:
+  cpu: 1
+  memory_gb: 2
+  disk_size_gb: 10
+
+env_variables:
+  SPRING_DATASOURCE_URL: "jdbc:mysql://35.239.255.137:3306/autoserviceos_bd?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true"
+  SPRING_DATASOURCE_USERNAME: "root"
+  SPRING_DATASOURCE_PASSWORD: "Sourcestd#24"
+  SPRING_JPA_HIBERNATE_DDL_AUTO: "update"
