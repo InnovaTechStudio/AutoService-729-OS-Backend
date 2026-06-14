@@ -2,6 +2,9 @@ package com.autoserviceos.api.workshopoperations.domain.model.aggregates;
 
 import java.math.BigDecimal;
 
+/**
+ * Aggregate root representing a specific diagnostic or repair job within a WorkOrder.
+ */
 public class Task {
 
     private final Long id;

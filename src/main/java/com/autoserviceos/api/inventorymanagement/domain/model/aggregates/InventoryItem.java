@@ -3,6 +3,10 @@ package com.autoserviceos.api.inventorymanagement.domain.model.aggregates;
 import java.math.BigDecimal;
 import java.util.Random;
 
+/**
+ * Aggregate root representing an Inventory Item within the Inventory Management domain.
+ * Safeguards stock constraints, pricing logic, and SKU generation.
+ */
 public class InventoryItem {
 
     private final Long id;

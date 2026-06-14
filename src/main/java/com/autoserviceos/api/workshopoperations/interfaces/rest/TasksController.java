@@ -1,19 +1,11 @@
 package com.autoserviceos.api.workshopoperations.interfaces.rest;
 
-import com.autoserviceos.api.workshopoperations.application.commands.CreateTaskCommand;
-import com.autoserviceos.api.workshopoperations.application.commands.DeleteTaskCommand;
-import com.autoserviceos.api.workshopoperations.application.commands.PatchTaskCommand;
-import com.autoserviceos.api.workshopoperations.application.commands.UpdateTaskCommand;
+import com.autoserviceos.api.workshopoperations.application.commands.*;
 import com.autoserviceos.api.workshopoperations.application.commandservices.TaskCommandService;
-import com.autoserviceos.api.workshopoperations.application.queries.GetAllTasksQuery;
-import com.autoserviceos.api.workshopoperations.application.queries.GetTasksByMechanicIdQuery;
-import com.autoserviceos.api.workshopoperations.application.queries.GetTasksByWorkOrderIdQuery;
-import com.autoserviceos.api.workshopoperations.application.queries.GetWorkOrdersByWorkshopIdQuery;
+import com.autoserviceos.api.workshopoperations.application.queries.*;
 import com.autoserviceos.api.workshopoperations.application.queryservices.TaskQueryService;
 import com.autoserviceos.api.workshopoperations.application.queryservices.WorkOrderQueryService;
-import com.autoserviceos.api.workshopoperations.interfaces.rest.resources.CreateTaskResource;
-import com.autoserviceos.api.workshopoperations.interfaces.rest.resources.PatchTaskResource;
-import com.autoserviceos.api.workshopoperations.interfaces.rest.resources.UpdateTaskResource;
+import com.autoserviceos.api.workshopoperations.interfaces.rest.resources.*;
 import io.jsonwebtoken.Claims;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -22,6 +14,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
+/**
+ * Exposes RESTful endpoints for managing granular maintenance tasks and technician status logs.
+ */
 @RestController
 @RequestMapping("/api/v1/tasks")
 @Tag(name = "Tasks", description = "Endpoints for granular maintenance tasks")

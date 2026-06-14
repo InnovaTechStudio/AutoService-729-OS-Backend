@@ -1,10 +1,7 @@
 package com.autoserviceos.api.inventorymanagement.application.internal.commandservices;
 
-import com.autoserviceos.api.inventorymanagement.application.commands.CreateInventoryItemCommand;
-import com.autoserviceos.api.inventorymanagement.application.commands.DeleteInventoryItemCommand;
-import com.autoserviceos.api.inventorymanagement.application.commands.UpdateInventoryItemCommand;
 import com.autoserviceos.api.inventorymanagement.application.commandservices.InventoryItemCommandService;
-
+import com.autoserviceos.api.inventorymanagement.application.commands.*;
 import com.autoserviceos.api.inventorymanagement.domain.model.aggregates.InventoryItem;
 import com.autoserviceos.api.inventorymanagement.domain.model.repositories.InventoryItemRepository;
 import org.springframework.stereotype.Service;
@@ -12,6 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Optional;
 
+/** Implementation coordinating inventory item creation, updates, and deletions. */
 @Service
 public class InventoryItemCommandServiceImpl implements InventoryItemCommandService {
 

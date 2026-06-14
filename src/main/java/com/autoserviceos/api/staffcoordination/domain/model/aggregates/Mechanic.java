@@ -1,78 +1,56 @@
 package com.autoserviceos.api.staffcoordination.domain.model.aggregates;
 
-import jakarta.persistence.*;
-
-@Entity
-@Table(name = "mechanics")
+/**
+ * Aggregate root representing a Mechanic within the Staff Coordination domain.
+ * Manages the profile, capacity metrics, and workshop assignment of a technical staff member.
+ */
 public class Mechanic {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-
-    @Column(nullable = false)
-    private String firstName;
-
-    @Column(nullable = false)
-    private String lastName;
-
-    @Column(nullable = false, unique = true)
-    private String email;
-
-    @Column(nullable = false)
-    private String phone;
-
-    @Column(nullable = false)
+    private final Long id;
+    private String fullName;
     private String specialty;
+    private String email;
+    private Integer maxCapacity;
+    private final String workshopId;
 
-    @Column(nullable = false)
-    private Long workshopId;
-
-    @Column(nullable = false)
-    private Boolean active;
-
-    protected Mechanic() {
-    }
-
-    public Mechanic(String firstName, String lastName, String email, String phone, String specialty, Long workshopId) {
-        this.firstName = firstName;
-        this.lastName = lastName;
-        this.email = email;
-        this.phone = phone;
+    private Mechanic(Long id, String fullName, String specialty, Integer maxCapacity, String email, String workshopId) {
+        this.id = id;
+        this.fullName = fullName;
         this.specialty = specialty;
+        this.maxCapacity = maxCapacity;
+        this.email = email;
         this.workshopId = workshopId;
-        this.active = true;
     }
 
-    public Long getId() {
-        return id;
+    /**
+     * Factory method to initialize a new Mechanic instance.
+     */
+    public static Mechanic create(String fullName, String specialty, Integer maxCapacity, String email, String workshopId) {
+        return new Mechanic(null, fullName, specialty, maxCapacity, email, workshopId);
     }
 
-    public String getFirstName() {
-        return firstName;
+    /**
+     * Factory method to reconstruct an existing Mechanic aggregate from persistence data.
+     */
+    public static Mechanic rehydrate(Long id, String fullName, String specialty, Integer maxCapacity, String email, String workshopId) {
+        return new Mechanic(id, fullName, specialty, maxCapacity, email, workshopId);
     }
 
-    public String getLastName() {
-        return lastName;
+    /**
+     * Updates core profile structures, specialized capability metadata, and contact details records.
+     */
+    public void update(String fullName, String specialty, Integer maxCapacity, String email) {
+        this.fullName = fullName;
+        this.specialty = specialty;
+        this.maxCapacity = maxCapacity;
+        this.email = email;
     }
 
-    public String getEmail() {
-        return email;
-    }
-
-    public String getPhone() {
-        return phone;
-    }
-
-    public String getSpecialty() {
-        return specialty;
-    }
-
-    public Long getWorkshopId() {
-        return workshopId;
-    }
-
-    public Boolean getActive() {
-        return active;
-    }
+    // Getters
+    public Long getId() { return id; }
+    public String getFullName() { return fullName; }
+    public String getSpecialty() { return specialty; }
+    public Integer getMaxCapacity() { return maxCapacity; }
+    public String getEmail() { return email; }
+    public String getWorkshopId() { return workshopId; }
 }

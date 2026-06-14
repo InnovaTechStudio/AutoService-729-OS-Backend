@@ -1,10 +1,8 @@
 package com.autoserviceos.api.workshopoperations.infrastructure.persistence.jpa.entities;
-
 import com.autoserviceos.api.shared.domain.model.entities.AuditableModel;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-
 import java.math.BigDecimal;
 
 @Getter
@@ -12,8 +10,7 @@ import java.math.BigDecimal;
 @NoArgsConstructor
 @Table(name = "tasks")
 public class TaskJpaEntity extends AuditableModel {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     @Column(nullable = false) private Long workOrderId;
     private Long mechanicId;

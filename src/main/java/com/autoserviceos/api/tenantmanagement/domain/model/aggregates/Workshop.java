@@ -1,70 +1,44 @@
 package com.autoserviceos.api.tenantmanagement.domain.model.aggregates;
 
-import jakarta.persistence.*;
+import java.util.UUID;
 
-@Entity
-@Table(name = "workshops")
+/**
+ * Aggregate root representing a business Workshop tenant within the system.
+ * Manages the corporate identity and generates unique tenant identifiers.
+ */
 public class Workshop {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-
-    @Column(nullable = false)
+    private final Long id;
     private String name;
+    private final String tenantId;
 
-    @Column(nullable = false, unique = true, length = 11)
-    private String ruc;
-
-    @Column(nullable = false)
-    private String address;
-
-    @Column(nullable = false)
-    private String phone;
-
-    @Column(nullable = false)
-    private String email;
-
-    @Column(nullable = false)
-    private Boolean active;
-
-    protected Workshop() {
-    }
-
-    public Workshop(String name, String ruc, String address, String phone, String email) {
+    private Workshop(Long id, String name, String tenantId) {
+        this.id = id;
         this.name = name;
-        this.ruc = ruc;
-        this.address = address;
-        this.phone = phone;
-        this.email = email;
-        this.active = true;
+        this.tenantId = tenantId;
     }
 
-    public Long getId() {
-        return id;
+    /**
+     * Factory method to instantiate a new Workshop tenant.
+     * Automatically generates a unique tenant identifier in the format "WS-XXXX".
+     *
+     * @param name The commercial or corporate name of the workshop.
+     * @return A new instance of Workshop.
+     */
+    public static Workshop create(String name) {
+        String generatedTenantId = "WS-" + UUID.randomUUID().toString().substring(0, 4).toUpperCase();
+        return new Workshop(null, name, generatedTenantId);
     }
 
-    public String getName() {
-        return name;
+    /**
+     * Factory method to reconstruct an existing Workshop aggregate from data stores.
+     */
+    public static Workshop rehydrate(Long id, String name, String tenantId) {
+        return new Workshop(id, name, tenantId);
     }
 
-    public String getRuc() {
-        return ruc;
-    }
-
-    public String getAddress() {
-        return address;
-    }
-
-    public String getPhone() {
-        return phone;
-    }
-
-    public String getEmail() {
-        return email;
-    }
-
-    public Boolean getActive() {
-        return active;
-    }
+    // Getters
+    public Long getId() { return id; }
+    public String getName() { return name; }
+    public String getTenantId() { return tenantId; }
 }

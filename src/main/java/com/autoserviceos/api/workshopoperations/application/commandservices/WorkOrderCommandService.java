@@ -1,10 +1,7 @@
 package com.autoserviceos.api.workshopoperations.application.commandservices;
 
-import com.autoserviceos.api.workshopoperations.application.commands.CreateWorkOrderCommand;
-import com.autoserviceos.api.workshopoperations.application.commands.DeleteWorkOrderCommand;
-import com.autoserviceos.api.workshopoperations.application.commands.UpdateWorkOrderCommand;
+import com.autoserviceos.api.workshopoperations.application.commands.*;
 import com.autoserviceos.api.workshopoperations.domain.model.aggregates.WorkOrder;
-
 import java.util.Optional;
 
 public interface WorkOrderCommandService {

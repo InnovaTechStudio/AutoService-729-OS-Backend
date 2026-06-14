@@ -1,4 +1,3 @@
 package com.autoserviceos.api.workshopoperations.application.queries;
 
-public record GetAllTasksQuery() {
-}
+public record GetAllTasksQuery() {}

@@ -1,9 +1,6 @@
 package com.autoserviceos.api.workshopoperations.application.internal.commandservices;
 
-import com.autoserviceos.api.workshopoperations.application.commands.CreateTaskCommand;
-import com.autoserviceos.api.workshopoperations.application.commands.DeleteTaskCommand;
-import com.autoserviceos.api.workshopoperations.application.commands.PatchTaskCommand;
-import com.autoserviceos.api.workshopoperations.application.commands.UpdateTaskCommand;
+import com.autoserviceos.api.workshopoperations.application.commands.*;
 import com.autoserviceos.api.workshopoperations.application.commandservices.TaskCommandService;
 import com.autoserviceos.api.workshopoperations.domain.model.aggregates.Task;
 import com.autoserviceos.api.workshopoperations.domain.model.repositories.TaskRepository;
@@ -12,6 +9,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Optional;
 
+/**
+ * Implementation coordinating write operations and lifecycle transitions for operational tasks.
+ */
 @Service
 public class TaskCommandServiceImpl implements TaskCommandService {
     private final TaskRepository taskRepository;
