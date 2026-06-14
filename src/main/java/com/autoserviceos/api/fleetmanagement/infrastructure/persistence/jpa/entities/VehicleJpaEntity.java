@@ -34,7 +34,7 @@ public class VehicleJpaEntity extends AuditableModel {
     @Column(nullable = false, length = 50)
     private String status;
 
-    @Column(length = 255)
+    @Column(columnDefinition = "LONGTEXT")
     private String image;
 
     @Column(nullable = false)

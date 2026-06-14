@@ -1,0 +1,4514 @@
+===== src/main/java/com/autoserviceos/api/Application.java =====
+package com.autoserviceos.api;
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+
+@SpringBootApplication
+public class Application {
+
+    public static void main(String[] args) {
+        SpringApplication.run(Application.class, args);
+    }
+
+}
+
+===== src/main/java/com/autoserviceos/api/customermanagement/application/commands/CreateCustomerCommand.java =====
+package com.autoserviceos.api.customermanagement.application.commands;
+
+/**
+ * Command to request the creation of a new customer.
+ */
+public record CreateCustomerCommand(String workshopId, String fullName, String dni, String email, String phone) {
+}
+
+===== src/main/java/com/autoserviceos/api/customermanagement/application/commands/DeleteCustomerCommand.java =====
+package com.autoserviceos.api.customermanagement.application.commands;
+
+/**
+ * Command to request the deletion of a customer by their unique identifier.
+ */
+public record DeleteCustomerCommand(Long id) {
+}
+
+===== src/main/java/com/autoserviceos/api/customermanagement/application/commands/UpdateCustomerCommand.java =====
+package com.autoserviceos.api.customermanagement.application.commands;
+
+/**
+ * Command to request the update of an existing customer's details.
+ */
+public record UpdateCustomerCommand(Long id, String fullName, String dni, String email, String phone) {
+}
+
+===== src/main/java/com/autoserviceos/api/customermanagement/application/commandservices/CustomerCommandService.java =====
+package com.autoserviceos.api.customermanagement.application.commandservices;
+
+import com.autoserviceos.api.customermanagement.domain.model.aggregates.Customer;
+import com.autoserviceos.api.customermanagement.application.commands.CreateCustomerCommand;
+import com.autoserviceos.api.customermanagement.application.commands.DeleteCustomerCommand;
+import com.autoserviceos.api.customermanagement.application.commands.UpdateCustomerCommand;
+
+import java.util.Optional;
+
+/**
+ * Application service contract for coordinating customer command operations (write operations).
+ */
+public interface CustomerCommandService {
+    Customer handle(CreateCustomerCommand command);
+    Optional<Customer> handle(UpdateCustomerCommand command);
+    void handle(DeleteCustomerCommand command);
+}
+
+===== src/main/java/com/autoserviceos/api/customermanagement/application/internal/commandservices/CustomerCommandServiceImpl.java =====
+package com.autoserviceos.api.customermanagement.application.internal.commandservices;
+
+import com.autoserviceos.api.customermanagement.application.commandservices.CustomerCommandService;
+import com.autoserviceos.api.customermanagement.application.commands.CreateCustomerCommand;
+import com.autoserviceos.api.customermanagement.application.commands.DeleteCustomerCommand;
+import com.autoserviceos.api.customermanagement.application.commands.UpdateCustomerCommand;
+import com.autoserviceos.api.customermanagement.domain.model.aggregates.Customer;
+import com.autoserviceos.api.customermanagement.domain.model.repositories.CustomerRepository;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.Optional;
+
+/**
+ * Implementation of the CustomerCommandService.
+ * Coordinates creation, updates, and deletion of customers.
+ */
+@Service
+public class CustomerCommandServiceImpl implements CustomerCommandService {
+    private final CustomerRepository customerRepository;
+
+    public CustomerCommandServiceImpl(CustomerRepository customerRepository) {
+        this.customerRepository = customerRepository;
+    }
+
+    @Override
+    @Transactional
+    public Customer handle(CreateCustomerCommand command) {
+        var customer = Customer.create(
+                command.workshopId(),
+                command.fullName(),
+                command.dni(),
+                command.email(),
+                command.phone()
+        );
+        return customerRepository.save(customer);
+    }
+
+    @Override
+    @Transactional
+    public Optional<Customer> handle(UpdateCustomerCommand command) {
+        var result = customerRepository.findById(command.id());
+        if (result.isEmpty()) return Optional.empty();
+
+        var customer = result.get();
+        customer.update(command.fullName(), command.dni(), command.email(), command.phone());
+        return Optional.of(customerRepository.save(customer));
+    }
+
+    @Override
+    @Transactional
+    public void handle(DeleteCustomerCommand command) {
+        customerRepository.findById(command.id()).ifPresent(customerRepository::delete);
+    }
+}
+
+===== src/main/java/com/autoserviceos/api/customermanagement/application/internal/queryservices/CustomerQueryServiceImpl.java =====
+package com.autoserviceos.api.customermanagement.application.internal.queryservices;
+
+import com.autoserviceos.api.customermanagement.application.queryservices.CustomerQueryService;
+import com.autoserviceos.api.customermanagement.application.queries.GetAllCustomersByWorkshopIdQuery;
+import com.autoserviceos.api.customermanagement.application.queries.GetCustomerByIdQuery;
+import com.autoserviceos.api.customermanagement.domain.model.aggregates.Customer;
+import com.autoserviceos.api.customermanagement.domain.model.repositories.CustomerRepository;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+import java.util.Optional;
+
+/**
+ * Implementation of the CustomerQueryService.
+ * Translates domain queries into repository operations.
+ */
+@Service
+@Transactional(readOnly = true)
+public class CustomerQueryServiceImpl implements CustomerQueryService {
+    private final CustomerRepository customerRepository;
+
+    public CustomerQueryServiceImpl(CustomerRepository customerRepository) {
+        this.customerRepository = customerRepository;
+    }
+
+    @Override
+    public Optional<Customer> handle(GetCustomerByIdQuery query) {
+        return customerRepository.findById(query.id());
+    }
+
+    @Override
+    public List<Customer> handle(GetAllCustomersByWorkshopIdQuery query) {
+        return customerRepository.findAllByWorkshopId(query.workshopId());
+    }
+}
+
+===== src/main/java/com/autoserviceos/api/customermanagement/application/queries/GetAllCustomersByWorkshopIdQuery.java =====
+package com.autoserviceos.api.customermanagement.application.queries;
+
+/**
+ * Query to retrieve all customers associated with a specific workshop.
+ */
+public record GetAllCustomersByWorkshopIdQuery(String workshopId) {
+}
+
+===== src/main/java/com/autoserviceos/api/customermanagement/application/queries/GetCustomerByIdQuery.java =====
+package com.autoserviceos.api.customermanagement.application.queries;
+
+/**
+ * Query to retrieve a specific customer by their unique identifier.
+ */
+public record GetCustomerByIdQuery(Long id) {
+}
+
+===== src/main/java/com/autoserviceos/api/customermanagement/application/queryservices/CustomerQueryService.java =====
+package com.autoserviceos.api.customermanagement.application.queryservices;
+
+import com.autoserviceos.api.customermanagement.domain.model.aggregates.Customer;
+import com.autoserviceos.api.customermanagement.application.queries.GetAllCustomersByWorkshopIdQuery;
+import com.autoserviceos.api.customermanagement.application.queries.GetCustomerByIdQuery;
+
+import java.util.List;
+import java.util.Optional;
+
+/**
+ * Application service contract providing read access to customer data.
+ */
+public interface CustomerQueryService {
+    Optional<Customer> handle(GetCustomerByIdQuery query);
+    List<Customer> handle(GetAllCustomersByWorkshopIdQuery query);
+}
+
+===== src/main/java/com/autoserviceos/api/customermanagement/domain/model/aggregates/Customer.java =====
+package com.autoserviceos.api.customermanagement.domain.model.aggregates;
+
+/**
+ * Pure domain aggregate root representing a Customer.
+ * Protects business invariants and exposes intention-revealing behavior.
+ */
+public class Customer {
+
+    private final Long id;
+    private final String workshopId;
+    private String fullName;
+    private String dni;
+    private String email;
+    private String phone;
+
+    private Customer(Long id, String workshopId, String fullName, String dni, String email, String phone) {
+        this.id = id;
+        this.workshopId = workshopId;
+        this.fullName = fullName;
+        this.dni = dni;
+        this.email = email;
+        this.phone = phone;
+    }
+
+    public static Customer create(String workshopId, String fullName, String dni, String email, String phone) {
+        return new Customer(null, workshopId, fullName, dni, email, phone);
+    }
+
+    public static Customer rehydrate(Long id, String workshopId, String fullName, String dni, String email, String phone) {
+        return new Customer(id, workshopId, fullName, dni, email, phone);
+    }
+
+    public void update(String fullName, String dni, String email, String phone) {
+        this.fullName = fullName;
+        this.dni = dni;
+        this.email = email;
+        this.phone = phone;
+    }
+
+    public Long getId() { return id; }
+    public String getWorkshopId() { return workshopId; }
+    public String getFullName() { return fullName; }
+    public String getDni() { return dni; }
+    public String getEmail() { return email; }
+    public String getPhone() { return phone; }
+}
+
+===== src/main/java/com/autoserviceos/api/customermanagement/domain/model/repositories/CustomerRepository.java =====
+package com.autoserviceos.api.customermanagement.domain.model.repositories;
+
+import com.autoserviceos.api.customermanagement.domain.model.aggregates.Customer;
+
+import java.util.List;
+import java.util.Optional;
+
+/**
+ * Domain repository port for Customer aggregates.
+ * The application layer depends on this abstraction, implemented by the infrastructure layer.
+ */
+public interface CustomerRepository {
+    Customer save(Customer customer);
+    Optional<Customer> findById(Long id);
+    List<Customer> findAllByWorkshopId(String workshopId);
+    void delete(Customer customer);
+}
+
+===== src/main/java/com/autoserviceos/api/customermanagement/infrastructure/persistence/jpa/CustomerPersistenceAdapter.java =====
+package com.autoserviceos.api.customermanagement.infrastructure.persistence.jpa;
+
+import com.autoserviceos.api.customermanagement.domain.model.aggregates.Customer;
+import com.autoserviceos.api.customermanagement.domain.model.repositories.CustomerRepository;
+import com.autoserviceos.api.customermanagement.infrastructure.persistence.jpa.mappers.CustomerPersistenceMapper;
+import com.autoserviceos.api.customermanagement.infrastructure.persistence.jpa.repositories.SpringDataCustomerJpaRepository;
+import org.springframework.stereotype.Component;
+
+import java.util.List;
+import java.util.Optional;
+
+/**
+ * Infrastructure adapter that implements the domain CustomerRepository interface.
+ * Connects the domain logic to the underlying Spring Data JPA repository.
+ */
+@Component
+public class CustomerPersistenceAdapter implements CustomerRepository {
+    private final SpringDataCustomerJpaRepository repository;
+
+    public CustomerPersistenceAdapter(SpringDataCustomerJpaRepository repository) {
+        this.repository = repository;
+    }
+
+    @Override
+    public Customer save(Customer customer) {
+        var entity = CustomerPersistenceMapper.toJpaEntity(customer);
+        var savedEntity = repository.save(entity);
+        return CustomerPersistenceMapper.toDomain(savedEntity);
+    }
+
+    @Override
+    public Optional<Customer> findById(Long id) {
+        return repository.findById(id).map(CustomerPersistenceMapper::toDomain);
+    }
+
+    @Override
+    public List<Customer> findAllByWorkshopId(String workshopId) {
+        return repository.findAllByWorkshopId(workshopId).stream()
+                .map(CustomerPersistenceMapper::toDomain)
+                .toList();
+    }
+
+    @Override
+    public void delete(Customer customer) {
+        repository.deleteById(customer.getId());
+    }
+}
+
+===== src/main/java/com/autoserviceos/api/customermanagement/infrastructure/persistence/jpa/entities/CustomerJpaEntity.java =====
+package com.autoserviceos.api.customermanagement.infrastructure.persistence.jpa.entities;
+
+import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+
+/**
+ * Database entity mapped to the "customers" table using JPA.
+ */
+@Getter
+@Entity
+@NoArgsConstructor
+@Table(name = "customers")
+public class CustomerJpaEntity {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(nullable = false, length = 50)
+    private String workshopId;
+
+    @Column(nullable = false, length = 150)
+    private String fullName;
+
+    @Column(nullable = false, length = 20)
+    private String dni;
+
+    @Column(length = 100)
+    private String email;
+
+    @Column(length = 30)
+    private String phone;
+
+    public CustomerJpaEntity(Long id, String workshopId, String fullName, String dni, String email, String phone) {
+        this.id = id;
+        this.workshopId = workshopId;
+        this.fullName = fullName;
+        this.dni = dni;
+        this.email = email;
+        this.phone = phone;
+    }
+}
+
+===== src/main/java/com/autoserviceos/api/customermanagement/infrastructure/persistence/jpa/mappers/CustomerPersistenceMapper.java =====
+package com.autoserviceos.api.customermanagement.infrastructure.persistence.jpa.mappers;
+
+import com.autoserviceos.api.customermanagement.domain.model.aggregates.Customer;
+import com.autoserviceos.api.customermanagement.infrastructure.persistence.jpa.entities.CustomerJpaEntity;
+
+/**
+ * Mapper utility class to convert between the Domain Aggregate and the JPA Entity.
+ */
+public final class CustomerPersistenceMapper {
+
+    private CustomerPersistenceMapper() {}
+
+    /**
+     * Converts a domain Customer aggregate to a JPA entity.
+     */
+    public static CustomerJpaEntity toJpaEntity(Customer aggregate) {
+        return new CustomerJpaEntity(
+                aggregate.getId(),
+                aggregate.getWorkshopId(),
+                aggregate.getFullName(),
+                aggregate.getDni(),
+                aggregate.getEmail(),
+                aggregate.getPhone()
+        );
+    }
+
+    /**
+     * Converts a JPA entity back to a domain Customer aggregate.
+     */
+    public static Customer toDomain(CustomerJpaEntity entity) {
+        return Customer.rehydrate(
+                entity.getId(),
+                entity.getWorkshopId(),
+                entity.getFullName(),
+                entity.getDni(),
+                entity.getEmail(),
+                entity.getPhone()
+        );
+    }
+}
+
+===== src/main/java/com/autoserviceos/api/customermanagement/infrastructure/persistence/jpa/repositories/SpringDataCustomerJpaRepository.java =====
+package com.autoserviceos.api.customermanagement.infrastructure.persistence.jpa.repositories;
+
+import com.autoserviceos.api.customermanagement.infrastructure.persistence.jpa.entities.CustomerJpaEntity;
+import org.springframework.data.jpa.repository.JpaRepository;
+import java.util.List;
+
+/**
+ * Spring Data JPA repository for executing database operations on CustomerJpaEntity.
+ */
+public interface SpringDataCustomerJpaRepository extends JpaRepository<CustomerJpaEntity, Long> {
+    List<CustomerJpaEntity> findAllByWorkshopId(String workshopId);
+}
+
+===== src/main/java/com/autoserviceos/api/customermanagement/interfaces/rest/CustomersController.java =====
+package com.autoserviceos.api.customermanagement.interfaces.rest;
+
+import com.autoserviceos.api.customermanagement.application.commandservices.CustomerCommandService;
+import com.autoserviceos.api.customermanagement.application.queryservices.CustomerQueryService;
+import com.autoserviceos.api.customermanagement.application.commands.DeleteCustomerCommand;
+import com.autoserviceos.api.customermanagement.application.queries.GetAllCustomersByWorkshopIdQuery;
+import com.autoserviceos.api.customermanagement.application.queries.GetCustomerByIdQuery;
+import com.autoserviceos.api.customermanagement.interfaces.rest.resources.CreateCustomerResource;
+import com.autoserviceos.api.customermanagement.interfaces.rest.resources.UpdateCustomerResource;
+import com.autoserviceos.api.customermanagement.interfaces.rest.transform.CustomerResourceAssembler;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+/**
+ * Exposes RESTful endpoints for managing customers within the API.
+ */
+@RestController
+@RequestMapping("/api/v1/customers")
+@Tag(name = "Customers", description = "Endpoints for managing customers")
+public class CustomersController {
+
+    private final CustomerCommandService customerCommandService;
+    private final CustomerQueryService customerQueryService;
+
+    public CustomersController(CustomerCommandService customerCommandService, CustomerQueryService customerQueryService) {
+        this.customerCommandService = customerCommandService;
+        this.customerQueryService = customerQueryService;
+    }
+
+    /**
+     * Temporary helper to simulate the authenticated user's Workshop ID.
+     * To be replaced when IAM module is integrated.
+     */
+    private String getAuthenticatedWorkshopId() {
+        return "WS-1";
+    }
+
+    @PostMapping
+    public ResponseEntity<?> createCustomer(@Valid @RequestBody CreateCustomerResource resource) {
+        var command = CustomerResourceAssembler.toCommandFromResource(resource, getAuthenticatedWorkshopId());
+        var customer = customerCommandService.handle(command);
+        return ResponseEntity.status(HttpStatus.CREATED).body(CustomerResourceAssembler.toResourceFromEntity(customer));
+    }
+
+    @GetMapping
+    public ResponseEntity<?> getAllCustomers() {
+        var query = new GetAllCustomersByWorkshopIdQuery(getAuthenticatedWorkshopId());
+        var customers = customerQueryService.handle(query);
+        var resources = customers.stream().map(CustomerResourceAssembler::toResourceFromEntity).toList();
+        return ResponseEntity.ok(resources);
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<?> getCustomerById(@PathVariable Long id) {
+        var query = new GetCustomerByIdQuery(id);
+        var customer = customerQueryService.handle(query);
+        if (customer.isEmpty()) return ResponseEntity.notFound().build();
+        return ResponseEntity.ok(CustomerResourceAssembler.toResourceFromEntity(customer.get()));
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<?> updateCustomer(@PathVariable Long id, @Valid @RequestBody UpdateCustomerResource resource) {
+        var command = CustomerResourceAssembler.toCommandFromResource(id, resource);
+        var customer = customerCommandService.handle(command);
+        if (customer.isEmpty()) return ResponseEntity.notFound().build();
+        return ResponseEntity.ok(CustomerResourceAssembler.toResourceFromEntity(customer.get()));
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<?> deleteCustomer(@PathVariable Long id) {
+        var command = new DeleteCustomerCommand(id);
+        customerCommandService.handle(command);
+        return ResponseEntity.noContent().build();
+    }
+}
+
+===== src/main/java/com/autoserviceos/api/customermanagement/interfaces/rest/resources/CreateCustomerResource.java =====
+package com.autoserviceos.api.customermanagement.interfaces.rest.resources;
+
+import jakarta.validation.constraints.NotBlank;
+
+/**
+ * Request DTO used to create a new customer.
+ */
+public record CreateCustomerResource(
+        @NotBlank String fullName,
+        @NotBlank String dni,
+        String email,
+        String phone
+) {}
+
+===== src/main/java/com/autoserviceos/api/customermanagement/interfaces/rest/resources/CustomerResource.java =====
+package com.autoserviceos.api.customermanagement.interfaces.rest.resources;
+
+/**
+ * Response DTO representing customer data.
+ */
+public record CustomerResource(
+        Long id,
+        String workshopId,
+        String fullName,
+        String dni,
+        String email,
+        String phone
+) {}
+
+===== src/main/java/com/autoserviceos/api/customermanagement/interfaces/rest/resources/UpdateCustomerResource.java =====
+package com.autoserviceos.api.customermanagement.interfaces.rest.resources;
+
+import jakarta.validation.constraints.NotBlank;
+
+/**
+ * Request DTO used to update an existing customer.
+ */
+public record UpdateCustomerResource(
+        @NotBlank String fullName,
+        @NotBlank String dni,
+        String email,
+        String phone
+) {}
+
+===== src/main/java/com/autoserviceos/api/customermanagement/interfaces/rest/transform/CustomerResourceAssembler.java =====
+package com.autoserviceos.api.customermanagement.interfaces.rest.transform;
+
+import com.autoserviceos.api.customermanagement.application.commands.CreateCustomerCommand;
+import com.autoserviceos.api.customermanagement.application.commands.UpdateCustomerCommand;
+import com.autoserviceos.api.customermanagement.domain.model.aggregates.Customer;
+import com.autoserviceos.api.customermanagement.interfaces.rest.resources.CreateCustomerResource;
+import com.autoserviceos.api.customermanagement.interfaces.rest.resources.CustomerResource;
+import com.autoserviceos.api.customermanagement.interfaces.rest.resources.UpdateCustomerResource;
+
+/**
+ * Translator class for converting between HTTP REST resources and Domain commands/entities.
+ */
+public class CustomerResourceAssembler {
+
+    /** Converts a Customer entity to a response resource. */
+    public static CustomerResource toResourceFromEntity(Customer entity) {
+        return new CustomerResource(
+                entity.getId(),
+                entity.getWorkshopId(),
+                entity.getFullName(),
+                entity.getDni(),
+                entity.getEmail(),
+                entity.getPhone()
+        );
+    }
+
+    /** Converts a creation request to a domain command. */
+    public static CreateCustomerCommand toCommandFromResource(CreateCustomerResource resource, String workshopId) {
+        return new CreateCustomerCommand(workshopId, resource.fullName(), resource.dni(), resource.email(), resource.phone());
+    }
+
+    /** Converts an update request to a domain command. */
+    public static UpdateCustomerCommand toCommandFromResource(Long id, UpdateCustomerResource resource) {
+        return new UpdateCustomerCommand(id, resource.fullName(), resource.dni(), resource.email(), resource.phone());
+    }
+}
+
+===== src/main/java/com/autoserviceos/api/fleetmanagement/application/commands/CreateVehicleCommand.java =====
+package com.autoserviceos.api.fleetmanagement.application.commands;
+/** Command to register a new vehicle into the fleet management context. */
+public record CreateVehicleCommand(String plate, String brand, String model, String year, String color, String status, String image, Long customerId) {}
+
+===== src/main/java/com/autoserviceos/api/fleetmanagement/application/commands/DeleteVehicleCommand.java =====
+package com.autoserviceos.api.fleetmanagement.application.commands;
+/** Command to remove a vehicle from the fleet. */
+public record DeleteVehicleCommand(Long id) {}
+
+===== src/main/java/com/autoserviceos/api/fleetmanagement/application/commands/UpdateVehicleCommand.java =====
+package com.autoserviceos.api.fleetmanagement.application.commands;
+/** Command to update an existing vehicle's details. */
+public record UpdateVehicleCommand(Long id, String plate, String brand, String model, String year, String color, String status, String image, Long customerId) {}
+
+===== src/main/java/com/autoserviceos/api/fleetmanagement/application/commandservices/VehicleCommandService.java =====
+package com.autoserviceos.api.fleetmanagement.application.commandservices;
+
+import com.autoserviceos.api.fleetmanagement.application.commands.*;
+import com.autoserviceos.api.fleetmanagement.domain.model.aggregates.Vehicle;
+import java.util.Optional;
+
+/** Service contract for managing vehicle domain write operations. */
+public interface VehicleCommandService {
+    Vehicle handle(CreateVehicleCommand command);
+    Optional<Vehicle> handle(UpdateVehicleCommand command);
+    void handle(DeleteVehicleCommand command);
+}
+
+===== src/main/java/com/autoserviceos/api/fleetmanagement/application/internal/commandservices/VehicleCommandServiceImpl.java =====
+package com.autoserviceos.api.fleetmanagement.application.internal.commandservices;
+
+import com.autoserviceos.api.fleetmanagement.application.commandservices.VehicleCommandService;
+import com.autoserviceos.api.fleetmanagement.application.commands.*;
+import com.autoserviceos.api.fleetmanagement.domain.model.aggregates.Vehicle;
+import com.autoserviceos.api.fleetmanagement.domain.model.repositories.VehicleRepository;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.Optional;
+
+/** Implementation orchestrating vehicle creation, updates, and deletions. */
+@Service
+public class VehicleCommandServiceImpl implements VehicleCommandService {
+    private final VehicleRepository vehicleRepository;
+
+    public VehicleCommandServiceImpl(VehicleRepository vehicleRepository) {
+        this.vehicleRepository = vehicleRepository;
+    }
+
+    @Override
+    @Transactional
+    public Vehicle handle(CreateVehicleCommand command) {
+        var vehicle = Vehicle.create(command.plate(), command.brand(), command.model(), command.year(),
+                command.color(), command.status(), command.image(), command.customerId());
+        return vehicleRepository.save(vehicle);
+    }
+
+    @Override
+    @Transactional
+    public Optional<Vehicle> handle(UpdateVehicleCommand command) {
+        var result = vehicleRepository.findById(command.id());
+        if (result.isEmpty()) return Optional.empty();
+
+        var vehicle = result.get();
+        vehicle.update(command.plate(), command.brand(), command.model(), command.year(),
+                command.color(), command.status(), command.image(), command.customerId());
+        return Optional.of(vehicleRepository.save(vehicle));
+    }
+
+    @Override
+    @Transactional
+    public void handle(DeleteVehicleCommand command) {
+        vehicleRepository.findById(command.id()).ifPresent(vehicleRepository::delete);
+    }
+}
+
+===== src/main/java/com/autoserviceos/api/fleetmanagement/application/internal/queryservices/VehicleQueryServiceImpl.java =====
+package com.autoserviceos.api.fleetmanagement.application.internal.queryservices;
+
+import com.autoserviceos.api.fleetmanagement.application.queryservices.VehicleQueryService;
+import com.autoserviceos.api.fleetmanagement.application.queries.*;
+import com.autoserviceos.api.fleetmanagement.domain.model.aggregates.Vehicle;
+import com.autoserviceos.api.fleetmanagement.domain.model.repositories.VehicleRepository;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+import java.util.Optional;
+
+/** Implementation executing read-only database queries for fleet information. */
+@Service
+@Transactional(readOnly = true)
+public class VehicleQueryServiceImpl implements VehicleQueryService {
+    private final VehicleRepository vehicleRepository;
+
+    public VehicleQueryServiceImpl(VehicleRepository vehicleRepository) {
+        this.vehicleRepository = vehicleRepository;
+    }
+
+    @Override
+    public Optional<Vehicle> handle(GetVehicleByIdQuery query) {
+        return vehicleRepository.findById(query.id());
+    }
+
+    @Override
+    public List<Vehicle> handle(GetAllVehiclesQuery query) {
+        return vehicleRepository.findAll();
+    }
+}
+
+===== src/main/java/com/autoserviceos/api/fleetmanagement/application/queries/GetAllVehiclesQuery.java =====
+package com.autoserviceos.api.fleetmanagement.application.queries;
+/** Query to retrieve all registered vehicles in the system. */
+public record GetAllVehiclesQuery() {}
+
+===== src/main/java/com/autoserviceos/api/fleetmanagement/application/queries/GetVehicleByIdQuery.java =====
+package com.autoserviceos.api.fleetmanagement.application.queries;
+/** Query to retrieve a specific vehicle by its unique identifier. */
+public record GetVehicleByIdQuery(Long id) {}
+
+===== src/main/java/com/autoserviceos/api/fleetmanagement/application/queryservices/VehicleQueryService.java =====
+package com.autoserviceos.api.fleetmanagement.application.queryservices;
+
+import com.autoserviceos.api.fleetmanagement.application.queries.*;
+import com.autoserviceos.api.fleetmanagement.domain.model.aggregates.Vehicle;
+import java.util.List;
+import java.util.Optional;
+
+/** Service contract for managing vehicle domain read operations. */
+public interface VehicleQueryService {
+    Optional<Vehicle> handle(GetVehicleByIdQuery query);
+    List<Vehicle> handle(GetAllVehiclesQuery query);
+}
+
+===== src/main/java/com/autoserviceos/api/fleetmanagement/domain/model/aggregates/Vehicle.java =====
+package com.autoserviceos.api.fleetmanagement.domain.model.aggregates;
+
+/**
+ * Aggregate root representing a Vehicle within the Fleet Management domain.
+ * Protects business invariants related to vehicle registration and status tracking.
+ */
+public class Vehicle {
+
+    private final Long id;
+    private String plate;
+    private String brand;
+    private String model;
+    private String year;
+    private String color;
+    private String status;
+    private String image;
+    private Long customerId;
+
+    private Vehicle(Long id, String plate, String brand, String model, String year, String color, String status, String image, Long customerId) {
+        this.id = id;
+        this.plate = plate;
+        this.brand = brand;
+        this.model = model;
+        this.year = year;
+        this.color = color;
+        this.status = status;
+        this.image = image;
+        this.customerId = customerId;
+    }
+
+    /**
+     * Factory method to initialize a new Vehicle instance with specified technical and owner details.
+     */
+    public static Vehicle create(String plate, String brand, String model, String year, String color, String status, String image, Long customerId) {
+        return new Vehicle(null, plate, brand, model, year, color, status, image, customerId);
+    }
+
+    /**
+     * Factory method to reconstruct an existing Vehicle aggregate from persistence data.
+     */
+    public static Vehicle rehydrate(Long id, String plate, String brand, String model, String year, String color, String status, String image, Long customerId) {
+        return new Vehicle(id, plate, brand, model, year, color, status, image, customerId);
+    }
+
+    /**
+     * Updates the vehicle's technical details, status, and owner assignment.
+     */
+    public void update(String plate, String brand, String model, String year, String color, String status, String image, Long customerId) {
+        this.plate = plate;
+        this.brand = brand;
+        this.model = model;
+        this.year = year;
+        this.color = color;
+        this.status = status;
+        this.image = image;
+        this.customerId = customerId;
+    }
+
+    // Getters
+    public Long getId() { return id; }
+    public String getPlate() { return plate; }
+    public String getBrand() { return brand; }
+    public String getModel() { return model; }
+    public String getYear() { return year; }
+    public String getColor() { return color; }
+    public String getStatus() { return status; }
+    public String getImage() { return image; }
+    public Long getCustomerId() { return customerId; }
+}
+
+===== src/main/java/com/autoserviceos/api/fleetmanagement/domain/model/repositories/VehicleRepository.java =====
+package com.autoserviceos.api.fleetmanagement.domain.model.repositories;
+
+import com.autoserviceos.api.fleetmanagement.domain.model.aggregates.Vehicle;
+import java.util.List;
+import java.util.Optional;
+
+/**
+ * Domain repository port defining the persistence contract for managing Vehicle entities.
+ */
+public interface VehicleRepository {
+    Vehicle save(Vehicle vehicle);
+    Optional<Vehicle> findById(Long id);
+    List<Vehicle> findAll();
+    void delete(Vehicle vehicle);
+}
+
+===== src/main/java/com/autoserviceos/api/fleetmanagement/infrastructure/persistence/jpa/VehiclePersistenceAdapter.java =====
+package com.autoserviceos.api.fleetmanagement.infrastructure.persistence.jpa;
+
+import com.autoserviceos.api.fleetmanagement.domain.model.aggregates.Vehicle;
+import com.autoserviceos.api.fleetmanagement.domain.model.repositories.VehicleRepository;
+import com.autoserviceos.api.fleetmanagement.infrastructure.persistence.jpa.mappers.VehiclePersistenceMapper;
+import com.autoserviceos.api.fleetmanagement.infrastructure.persistence.jpa.repositories.SpringDataVehicleRepository;
+import org.springframework.stereotype.Component;
+
+import java.util.List;
+import java.util.Optional;
+
+@Component
+public class VehiclePersistenceAdapter implements VehicleRepository {
+    private final SpringDataVehicleRepository repository;
+
+    public VehiclePersistenceAdapter(SpringDataVehicleRepository repository) { this.repository = repository; }
+
+    @Override
+    public Vehicle save(Vehicle vehicle) {
+        var entity = VehiclePersistenceMapper.toJpaEntity(vehicle);
+        return VehiclePersistenceMapper.toDomain(repository.save(entity));
+    }
+
+    @Override
+    public Optional<Vehicle> findById(Long id) {
+        return repository.findById(id).map(VehiclePersistenceMapper::toDomain);
+    }
+
+    @Override
+    public List<Vehicle> findAll() {
+        return repository.findAll().stream().map(VehiclePersistenceMapper::toDomain).toList();
+    }
+
+    @Override
+    public void delete(Vehicle vehicle) {
+        repository.deleteById(vehicle.getId());
+    }
+}
+
+===== src/main/java/com/autoserviceos/api/fleetmanagement/infrastructure/persistence/jpa/entities/VehicleJpaEntity.java =====
+package com.autoserviceos.api.fleetmanagement.infrastructure.persistence.jpa.entities;
+
+import com.autoserviceos.api.shared.domain.model.entities.AuditableModel;
+import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+
+/** JPA entity mapped to the vehicles table in the database. */
+@Getter
+@Entity
+@NoArgsConstructor
+@Table(name = "vehicles")
+public class VehicleJpaEntity extends AuditableModel {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(nullable = false, length = 15)
+    private String plate;
+
+    @Column(nullable = false, length = 50)
+    private String brand;
+
+    @Column(nullable = false, length = 50)
+    private String model;
+
+    @Column(nullable = false, length = 4)
+    private String year;
+
+    @Column(length = 30)
+    private String color;
+
+    @Column(nullable = false, length = 50)
+    private String status;
+
+    @Column(columnDefinition = "LONGTEXT")
+    private String image;
+
+    @Column(nullable = false)
+    private Long customerId;
+
+    public VehicleJpaEntity(Long id, String plate, String brand, String model, String year, String color, String status, String image, Long customerId) {
+        this.id = id;
+        this.plate = plate;
+        this.brand = brand;
+        this.model = model;
+        this.year = year;
+        this.color = color;
+        this.status = status;
+        this.image = image;
+        this.customerId = customerId;
+    }
+}
+
+===== src/main/java/com/autoserviceos/api/fleetmanagement/infrastructure/persistence/jpa/mappers/VehiclePersistenceMapper.java =====
+package com.autoserviceos.api.fleetmanagement.infrastructure.persistence.jpa.mappers;
+
+import com.autoserviceos.api.fleetmanagement.domain.model.aggregates.Vehicle;
+import com.autoserviceos.api.fleetmanagement.infrastructure.persistence.jpa.entities.VehicleJpaEntity;
+
+public final class VehiclePersistenceMapper {
+    private VehiclePersistenceMapper() {}
+
+    public static VehicleJpaEntity toJpaEntity(Vehicle aggregate) {
+        return new VehicleJpaEntity(aggregate.getId(), aggregate.getPlate(), aggregate.getBrand(), aggregate.getModel(),
+                aggregate.getYear(), aggregate.getColor(), aggregate.getStatus(), aggregate.getImage(), aggregate.getCustomerId());
+    }
+
+    public static Vehicle toDomain(VehicleJpaEntity entity) {
+        return Vehicle.rehydrate(entity.getId(), entity.getPlate(), entity.getBrand(), entity.getModel(),
+                entity.getYear(), entity.getColor(), entity.getStatus(), entity.getImage(), entity.getCustomerId());
+    }
+}
+
+===== src/main/java/com/autoserviceos/api/fleetmanagement/infrastructure/persistence/jpa/repositories/SpringDataVehicleRepository.java =====
+package com.autoserviceos.api.fleetmanagement.infrastructure.persistence.jpa.repositories;
+import com.autoserviceos.api.fleetmanagement.infrastructure.persistence.jpa.entities.VehicleJpaEntity;
+import org.springframework.data.jpa.repository.JpaRepository;
+public interface SpringDataVehicleRepository extends JpaRepository<VehicleJpaEntity, Long> {}
+
+===== src/main/java/com/autoserviceos/api/fleetmanagement/interfaces/rest/VehiclesController.java =====
+package com.autoserviceos.api.fleetmanagement.interfaces.rest;
+
+import com.autoserviceos.api.customermanagement.application.queries.GetAllCustomersByWorkshopIdQuery;
+import com.autoserviceos.api.customermanagement.application.queryservices.CustomerQueryService;
+import com.autoserviceos.api.fleetmanagement.application.commands.DeleteVehicleCommand;
+import com.autoserviceos.api.fleetmanagement.application.commandservices.VehicleCommandService;
+import com.autoserviceos.api.fleetmanagement.application.queries.GetAllVehiclesQuery;
+import com.autoserviceos.api.fleetmanagement.application.queries.GetVehicleByIdQuery;
+import com.autoserviceos.api.fleetmanagement.application.queryservices.VehicleQueryService;
+import com.autoserviceos.api.fleetmanagement.interfaces.rest.resources.CreateVehicleResource;
+import com.autoserviceos.api.fleetmanagement.interfaces.rest.resources.UpdateVehicleResource;
+import com.autoserviceos.api.fleetmanagement.interfaces.rest.transform.VehicleResourceAssembler;
+import io.jsonwebtoken.Claims;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+/**
+ * Exposes RESTful endpoints for managing vehicles inside the fleet context.
+ */
+@RestController
+@RequestMapping("/api/v1/vehicles")
+@Tag(name = "Vehicles", description = "Endpoints for managing workshop fleet vehicles")
+public class VehiclesController {
+
+    private final VehicleCommandService vehicleCommandService;
+    private final VehicleQueryService vehicleQueryService;
+    private final CustomerQueryService customerQueryService;
+
+    public VehiclesController(VehicleCommandService vehicleCommandService, VehicleQueryService vehicleQueryService, CustomerQueryService customerQueryService) {
+        this.vehicleCommandService = vehicleCommandService;
+        this.vehicleQueryService = vehicleQueryService;
+        this.customerQueryService = customerQueryService;
+    }
+
+    /**
+     * Extracts the WorkshopId from the current authenticated user's JWT token.
+     */
+    private String getAuthenticatedWorkshopId() {
+        var authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication != null && authentication.getCredentials() instanceof Claims claims) {
+            return claims.get("workshopId", String.class);
+        }
+        return null;
+    }
+
+    @PostMapping
+    public ResponseEntity<?> createVehicle(@Valid @RequestBody CreateVehicleResource resource) {
+        var command = VehicleResourceAssembler.toCommandFromResource(resource);
+        var vehicle = vehicleCommandService.handle(command);
+        return ResponseEntity.status(HttpStatus.CREATED).body(VehicleResourceAssembler.toResourceFromEntity(vehicle));
+    }
+
+    @GetMapping
+    public ResponseEntity<?> getAllVehicles() {
+        String workshopId = getAuthenticatedWorkshopId();
+        if (workshopId == null || workshopId.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        // Fetch all vehicles and filter them by the current workshop's customers
+        var allVehicles = vehicleQueryService.handle(new GetAllVehiclesQuery());
+        var workshopCustomers = customerQueryService.handle(new GetAllCustomersByWorkshopIdQuery(workshopId));
+
+        List<Long> validCustomerIds = workshopCustomers.stream()
+                .map(customer -> customer.getId())
+                .toList();
+
+        var filteredResources = allVehicles.stream()
+                .filter(v -> validCustomerIds.contains(v.getCustomerId()))
+                .map(VehicleResourceAssembler::toResourceFromEntity)
+                .toList();
+
+        return ResponseEntity.ok(filteredResources);
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<?> getVehicleById(@PathVariable Long id) {
+        var vehicle = vehicleQueryService.handle(new GetVehicleByIdQuery(id));
+        if (vehicle.isEmpty()) return ResponseEntity.notFound().build();
+        return ResponseEntity.ok(VehicleResourceAssembler.toResourceFromEntity(vehicle.get()));
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<?> updateVehicle(@PathVariable Long id, @Valid @RequestBody UpdateVehicleResource resource) {
+        var command = VehicleResourceAssembler.toCommandFromResource(id, resource);
+        var vehicle = vehicleCommandService.handle(command);
+        if (vehicle.isEmpty()) return ResponseEntity.notFound().build();
+        return ResponseEntity.ok(VehicleResourceAssembler.toResourceFromEntity(vehicle.get()));
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<?> deleteVehicle(@PathVariable Long id) {
+        vehicleCommandService.handle(new DeleteVehicleCommand(id));
+        return ResponseEntity.noContent().build();
+    }
+}
+
+===== src/main/java/com/autoserviceos/api/fleetmanagement/interfaces/rest/resources/CreateVehicleResource.java =====
+package com.autoserviceos.api.fleetmanagement.interfaces.rest.resources;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+public record CreateVehicleResource(@NotBlank String plate, @NotBlank String brand, @NotBlank String model, @NotBlank String year, String color, @NotBlank String status, String image, @NotNull Long customerId) {}
+
+===== src/main/java/com/autoserviceos/api/fleetmanagement/interfaces/rest/resources/UpdateVehicleResource.java =====
+package com.autoserviceos.api.fleetmanagement.interfaces.rest.resources;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+public record UpdateVehicleResource(@NotBlank String plate, @NotBlank String brand, @NotBlank String model, @NotBlank String year, String color, @NotBlank String status, String image, @NotNull Long customerId) {}
+
+===== src/main/java/com/autoserviceos/api/fleetmanagement/interfaces/rest/resources/VehicleResource.java =====
+package com.autoserviceos.api.fleetmanagement.interfaces.rest.resources;
+public record VehicleResource(Long id, String plate, String brand, String model, String year, String color, String status, String image, Long customerId) {}
+
+===== src/main/java/com/autoserviceos/api/fleetmanagement/interfaces/rest/transform/VehicleResourceAssembler.java =====
+package com.autoserviceos.api.fleetmanagement.interfaces.rest.transform;
+
+import com.autoserviceos.api.fleetmanagement.application.commands.CreateVehicleCommand;
+import com.autoserviceos.api.fleetmanagement.application.commands.UpdateVehicleCommand;
+import com.autoserviceos.api.fleetmanagement.domain.model.aggregates.Vehicle;
+import com.autoserviceos.api.fleetmanagement.interfaces.rest.resources.CreateVehicleResource;
+import com.autoserviceos.api.fleetmanagement.interfaces.rest.resources.UpdateVehicleResource;
+import com.autoserviceos.api.fleetmanagement.interfaces.rest.resources.VehicleResource;
+
+public class VehicleResourceAssembler {
+    public static VehicleResource toResourceFromEntity(Vehicle entity) {
+        return new VehicleResource(entity.getId(), entity.getPlate(), entity.getBrand(), entity.getModel(),
+                entity.getYear(), entity.getColor(), entity.getStatus(), entity.getImage(), entity.getCustomerId());
+    }
+
+    public static CreateVehicleCommand toCommandFromResource(CreateVehicleResource resource) {
+        return new CreateVehicleCommand(resource.plate(), resource.brand(), resource.model(), resource.year(),
+                resource.color(), resource.status(), resource.image(), resource.customerId());
+    }
+
+    public static UpdateVehicleCommand toCommandFromResource(Long id, UpdateVehicleResource resource) {
+        return new UpdateVehicleCommand(id, resource.plate(), resource.brand(), resource.model(), resource.year(),
+                resource.color(), resource.status(), resource.image(), resource.customerId());
+    }
+}
+
+===== src/main/java/com/autoserviceos/api/iam/application/commands/AuthenticationResult.java =====
+package com.autoserviceos.api.iam.application.commands;
+
+import com.autoserviceos.api.iam.domain.model.aggregates.User;
+
+/**
+ * Response structure encapsulating the authenticated User aggregate and its generated JWT token.
+ */
+public record AuthenticationResult(User user, String token) {
+}
+
+===== src/main/java/com/autoserviceos/api/iam/application/commands/SignInCommand.java =====
+package com.autoserviceos.api.iam.application.commands;
+
+/**
+ * Command encapsulating user login credentials for authentication checks.
+ */
+public record SignInCommand(String email, String password) {
+}
+
+===== src/main/java/com/autoserviceos/api/iam/application/commands/SignUpCommand.java =====
+package com.autoserviceos.api.iam.application.commands;
+
+/**
+ * Command containing payload details required to register a new user identity.
+ */
+public record SignUpCommand(String email, String password, String role, String workshopId) {
+}
+
+===== src/main/java/com/autoserviceos/api/iam/application/commandservices/IamCommandService.java =====
+package com.autoserviceos.api.iam.application.commandservices;
+
+import com.autoserviceos.api.iam.application.commands.AuthenticationResult;
+import com.autoserviceos.api.iam.application.commands.SignInCommand;
+import com.autoserviceos.api.iam.application.commands.SignUpCommand;
+import com.autoserviceos.api.iam.domain.model.aggregates.User;
+import java.util.Optional;
+
+/**
+ * Inbound application service interface handling security command behaviors.
+ */
+public interface IamCommandService {
+    User handle(SignUpCommand command);
+    Optional<AuthenticationResult> handle(SignInCommand command);
+}
+
+===== src/main/java/com/autoserviceos/api/iam/application/commandservices/IamCommandServiceImpl.java =====
+package com.autoserviceos.api.iam.application.internal.commandservices;
+
+import com.autoserviceos.api.iam.application.commands.AuthenticationResult;
+import com.autoserviceos.api.iam.application.commands.SignInCommand;
+import com.autoserviceos.api.iam.application.commands.SignUpCommand;
+import com.autoserviceos.api.iam.application.commandservices.IamCommandService;
+import com.autoserviceos.api.iam.domain.model.aggregates.User;
+import com.autoserviceos.api.iam.domain.model.repositories.UserRepository;
+import com.autoserviceos.api.iam.infrastructure.security.token.JwtTokenProvider;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.Optional;
+
+/**
+ * Service orchestrator implementing authentication, hashing and authorization token assembly routines.
+ */
+@Service
+public class IamCommandServiceImpl implements IamCommandService {
+
+    private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
+    private final JwtTokenProvider tokenProvider;
+
+    public IamCommandServiceImpl(UserRepository userRepository, PasswordEncoder passwordEncoder, JwtTokenProvider tokenProvider) {
+        this.userRepository = userRepository;
+        this.passwordEncoder = passwordEncoder;
+        this.tokenProvider = tokenProvider;
+    }
+
+    @Override
+    @Transactional
+    public User handle(SignUpCommand command) {
+        if (userRepository.findByEmail(command.email()).isPresent()) {
+            throw new IllegalArgumentException("Email is already taken.");
+        }
+
+        String passwordHash = passwordEncoder.encode(command.password());
+        User user = User.create(command.email(), passwordHash, command.role(), command.workshopId());
+        return userRepository.save(user);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<AuthenticationResult> handle(SignInCommand command) {
+        var userOptional = userRepository.findByEmail(command.email());
+        if (userOptional.isEmpty() || !passwordEncoder.matches(command.password(), userOptional.get().getPasswordHash())) {
+            return Optional.empty();
+        }
+
+        User user = userOptional.get();
+        String token = tokenProvider.generateToken(user);
+        return Optional.of(new AuthenticationResult(user, token));
+    }
+}
+
+===== src/main/java/com/autoserviceos/api/iam/domain/model/aggregates/User.java =====
+package com.autoserviceos.api.iam.domain.model.aggregates;
+
+/**
+ * Aggregate root representing an authenticated User within the IAM context.
+ * Manages user credentials, role assignments, and workshop alignment.
+ */
+public class User {
+
+    private final Long id;
+    private final String email;
+    private String passwordHash;
+    private final String role;
+    private final String workshopId;
+
+    private User(Long id, String email, String passwordHash, String role, String workshopId) {
+        this.id = id;
+        this.email = email;
+        this.passwordHash = passwordHash;
+        this.role = role;
+        this.workshopId = workshopId;
+    }
+
+    /**
+     * Factory method to instantiate a new User aggregate root.
+     *
+     * @param email The unique identifier email address.
+     * @param passwordHash The securely pre-hashed password.
+     * @param role The authorization access role.
+     * @param workshopId The tenant workshop context scope identifier.
+     * @return A new instance of User.
+     */
+    public static User create(String email, String passwordHash, String role, String workshopId) {
+        return new User(null, email, passwordHash, role, workshopId);
+    }
+
+    /**
+     * Factory method to reconstruct an existing User aggregate from data stores.
+     */
+    public static User rehydrate(Long id, String email, String passwordHash, String role, String workshopId) {
+        return new User(id, email, passwordHash, role, workshopId);
+    }
+
+    /**
+     * Securely overwrites the current password hash state.
+     *
+     * @param newPasswordHash The new pre-hashed password string.
+     */
+    public void updatePassword(String newPasswordHash) {
+        this.passwordHash = newPasswordHash;
+    }
+
+    // Getters
+    public Long getId() { return id; }
+    public String getEmail() { return email; }
+    public String getPasswordHash() { return passwordHash; }
+    public String getRole() { return role; }
+    public String getWorkshopId() { return workshopId; }
+}
+
+===== src/main/java/com/autoserviceos/api/iam/domain/model/repositories/UserRepository.java =====
+package com.autoserviceos.api.iam.domain.model.repositories;
+
+import com.autoserviceos.api.iam.domain.model.aggregates.User;
+import java.util.Optional;
+
+/**
+ * Domain repository port interface for managing User aggregates.
+ * Decouples domain operations from persistence mechanisms.
+ */
+public interface UserRepository {
+    User save(User user);
+    Optional<User> findById(Long id);
+    Optional<User> findByEmail(String email);
+}
+
+===== src/main/java/com/autoserviceos/api/iam/infrastructure/persistence/jpa/UserPersistenceAdapter.java =====
+package com.autoserviceos.api.iam.infrastructure.persistence.jpa;
+
+import com.autoserviceos.api.iam.domain.model.aggregates.User;
+import com.autoserviceos.api.iam.domain.model.repositories.UserRepository;
+import com.autoserviceos.api.iam.infrastructure.persistence.jpa.mappers.UserPersistenceMapper;
+import com.autoserviceos.api.iam.infrastructure.persistence.jpa.repositories.SpringDataUserRepository;
+import org.springframework.stereotype.Component;
+
+import java.util.Optional;
+
+/**
+ * Persistence adapter providing implementation infrastructure mapping onto Domain Port specifications.
+ */
+@Component
+public class UserPersistenceAdapter implements UserRepository {
+
+    private final SpringDataUserRepository repository;
+
+    public UserPersistenceAdapter(SpringDataUserRepository repository) {
+        this.repository = repository;
+    }
+
+    @Override
+    public User save(User user) {
+        var entity = UserPersistenceMapper.toJpaEntity(user);
+        var savedEntity = repository.save(entity);
+        return UserPersistenceMapper.toDomain(savedEntity);
+    }
+
+    @Override
+    public Optional<User> findById(Long id) {
+        return repository.findById(id).map(UserPersistenceMapper::toDomain);
+    }
+
+    @Override
+    public Optional<User> findByEmail(String email) {
+        return repository.findByEmail(email).map(UserPersistenceMapper::toDomain);
+    }
+}
+
+===== src/main/java/com/autoserviceos/api/iam/infrastructure/persistence/jpa/entities/UserJpaEntity.java =====
+package com.autoserviceos.api.iam.infrastructure.persistence.jpa.entities;
+
+import com.autoserviceos.api.shared.domain.model.entities.AuditableModel;
+import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+
+/**
+ * JPA entity representing user persistence structure mapped onto the database.
+ */
+@Getter
+@Entity
+@NoArgsConstructor
+@Table(name = "users")
+public class UserJpaEntity extends AuditableModel {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(nullable = false, unique = true, length = 100)
+    private String email;
+
+    @Column(nullable = false, length = 255)
+    private String passwordHash;
+
+    @Column(nullable = false, length = 30)
+    private String role;
+
+    @Column(nullable = false, length = 50)
+    private String workshopId;
+
+    public UserJpaEntity(Long id, String email, String passwordHash, String role, String workshopId) {
+        this.id = id;
+        this.email = email;
+        this.passwordHash = passwordHash;
+        this.role = role;
+        this.workshopId = workshopId;
+    }
+}
+
+===== src/main/java/com/autoserviceos/api/iam/infrastructure/persistence/jpa/mappers/UserPersistenceMapper.java =====
+package com.autoserviceos.api.iam.infrastructure.persistence.jpa.mappers;
+
+import com.autoserviceos.api.iam.domain.model.aggregates.User;
+import com.autoserviceos.api.iam.infrastructure.persistence.jpa.entities.UserJpaEntity;
+
+/**
+ * Bidirectional component mapper mapping values between User Aggregate and UserJpaEntity.
+ */
+public final class UserPersistenceMapper {
+
+    private UserPersistenceMapper() {}
+
+    public static UserJpaEntity toJpaEntity(User aggregate) {
+        return new UserJpaEntity(
+                aggregate.getId(), aggregate.getEmail(), aggregate.getPasswordHash(),
+                aggregate.getRole(), aggregate.getWorkshopId()
+        );
+    }
+
+    public static User toDomain(UserJpaEntity entity) {
+        return User.rehydrate(
+                entity.getId(), entity.getEmail(), entity.getPasswordHash(),
+                entity.getRole(), entity.getWorkshopId()
+        );
+    }
+}
+
+===== src/main/java/com/autoserviceos/api/iam/infrastructure/persistence/jpa/repositories/SpringDataUserRepository.java =====
+package com.autoserviceos.api.iam.infrastructure.persistence.jpa.repositories;
+
+import com.autoserviceos.api.iam.infrastructure.persistence.jpa.entities.UserJpaEntity;
+import org.springframework.data.jpa.repository.JpaRepository;
+import java.util.Optional;
+
+/**
+ * Spring Data interface abstraction providing database access routines for User entities.
+ */
+public interface SpringDataUserRepository extends JpaRepository<UserJpaEntity, Long> {
+    Optional<UserJpaEntity> findByEmail(String email);
+}
+
+===== src/main/java/com/autoserviceos/api/iam/infrastructure/security/config/SecurityConfiguration.java =====
+package com.autoserviceos.api.iam.infrastructure.security.config;
+
+import com.autoserviceos.api.iam.infrastructure.security.middleware.JwtAuthenticationFilter;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
+import org.springframework.security.config.Customizer;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+
+import java.util.Arrays;
+import java.util.List;
+
+/**
+ * Core security configuration pipeline activating filter interceptors, CORS, and open public endpoints.
+ */
+@Configuration
+@EnableWebSecurity
+public class SecurityConfiguration {
+
+    private final JwtAuthenticationFilter jwtAuthenticationFilter;
+
+    public SecurityConfiguration(JwtAuthenticationFilter jwtAuthenticationFilter) {
+        this.jwtAuthenticationFilter = jwtAuthenticationFilter;
+    }
+
+    @Bean
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
+    }
+
+    @Bean
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+        http
+                .cors(Customizer.withDefaults())
+                .csrf(AbstractHttpConfigurer::disable)
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .authorizeHttpRequests(auth -> auth
+                        // Whitelist Authentication and Swagger OpenAPI panels endpoints
+                        .requestMatchers("/api/v1/auth/**").permitAll()
+                        .requestMatchers("/error").permitAll()
+
+                        .requestMatchers(HttpMethod.GET, "/api/v1/work-orders/tracking/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/tracking/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/inventory/**").permitAll()
+
+                        // Swagger UI
+                        .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
+
+                        .anyRequest().authenticated()
+                )
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+
+        return http.build();
+    }
+
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration configuration = new CorsConfiguration();
+        configuration.setAllowedOrigins(List.of("http://localhost:4200"));
+        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
+        configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "x-auth-token"));
+        configuration.setAllowCredentials(true);
+
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", configuration);
+        return source;
+    }
+}
+
+===== src/main/java/com/autoserviceos/api/iam/infrastructure/security/middleware/JwtAuthenticationFilter.java =====
+package com.autoserviceos.api.iam.infrastructure.security.middleware;
+
+import com.autoserviceos.api.iam.infrastructure.security.token.JwtTokenProvider;
+import io.jsonwebtoken.Claims;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.http.HttpHeaders;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
+import org.springframework.web.filter.OncePerRequestFilter;
+
+import java.io.IOException;
+import java.util.Collections;
+
+/**
+ * Filter middleware intercepting requests to validate HTTP Bearer headers and mount Spring Security authentication contexts.
+ */
+@Component
+public class JwtAuthenticationFilter extends OncePerRequestFilter {
+
+    private final JwtTokenProvider tokenProvider;
+
+    public JwtAuthenticationFilter(JwtTokenProvider tokenProvider) {
+        this.tokenProvider = tokenProvider;
+    }
+
+    @Override
+    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
+            throws ServletException, IOException {
+
+        try {
+            String token = getJwtFromRequest(request);
+
+            if (StringUtils.hasText(token)) {
+                System.out.println("[JWT FILTER] Token recibido en backend correctamente.");
+
+                boolean isValid = tokenProvider.validateToken(token);
+                System.out.println("[JWT FILTER] ¿El token pasó la validación de firma/expiración?: " + isValid);
+
+                if (isValid) {
+                    Claims claims = tokenProvider.getClaimsFromToken(token);
+                    String username = claims.getSubject();
+
+                    String role = claims.get("role", String.class);
+                    System.out.println("[JWT FILTER] Usuario extraído: " + username + " | Rol extraído: " + role);
+
+                    if (role == null) {
+                        System.out.println("[JWT FILTER] ADVERTENCIA: El token no contiene un claim llamado 'role'. Usando 'USER' por defecto para evitar caídas.");
+                        role = "USER";
+                    }
+
+                    var authorities = Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + role.toUpperCase()));
+                    var authentication = new UsernamePasswordAuthenticationToken(username, claims, authorities);
+
+                    SecurityContextHolder.getContext().setAuthentication(authentication);
+                    System.out.println("[JWT FILTER] Autenticación inyectada con éxito en el contexto de Spring.");
+                } else {
+                    System.out.println("[JWT FILTER] El token es inválido (Expirado o firma incorrecta).");
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("[JWT FILTER] Error crítico procesando el token: " + e.getMessage());
+            e.printStackTrace();
+        }
+
+        filterChain.doFilter(request, response);
+    }
+
+    private String getJwtFromRequest(HttpServletRequest request) {
+        String bearerToken = request.getHeader(HttpHeaders.AUTHORIZATION);
+        if (StringUtils.hasText(bearerToken) && bearerToken.startsWith("Bearer ")) {
+            return bearerToken.substring(7);
+        }
+        return null;
+    }
+}
+
+===== src/main/java/com/autoserviceos/api/iam/infrastructure/security/token/JwtTokenProvider.java =====
+package com.autoserviceos.api.iam.infrastructure.security.token;
+
+import com.autoserviceos.api.iam.domain.model.aggregates.User;
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.security.Keys;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
+
+import javax.crypto.SecretKey;
+import java.nio.charset.StandardCharsets;
+import java.util.Date;
+
+/**
+ * Token engine handling signed JWT operations, cryptographic configurations, and claim parsing definitions.
+ */
+@Component
+public class JwtTokenProvider {
+
+    @Value("${jwt.secret}")
+    private String secret;
+
+    @Value("${jwt.issuer}")
+    private String issuer;
+
+    @Value("${jwt.audience}")
+    private String audience;
+
+    @Value("${jwt.expiration-in-minutes}")
+    private long expirationInMinutes;
+
+    private SecretKey getSigningKey() {
+        return Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
+    }
+
+    /**
+     * Generates a signed bearer JSON Web Token matching authenticated user credentials payload context.
+     */
+    public String generateToken(User user) {
+        Date now = new Date();
+        Date expiryDate = new Date(now.getTime() + (expirationInMinutes * 60 * 1000));
+
+        return Jwts.builder()
+                .subject(user.getId().toString())
+                .claim("email", user.getEmail())
+                .claim("role", user.getRole())
+                .claim("workshopId", user.getWorkshopId())
+                .issuer(issuer)
+                .audience().add(audience).and()
+                .issuedAt(now)
+                .expiration(expiryDate)
+                .signWith(getSigningKey())
+                .compact();
+    }
+
+    /**
+     * Validates and extracts embedded operational token strings claims payload contents.
+     */
+    public Claims getClaimsFromToken(String token) {
+        return Jwts.parser()
+                .verifyWith(getSigningKey())
+                .build()
+                .parseSignedClaims(token)
+                .getPayload();
+    }
+
+    /**
+     * Confirms string authenticity structures integrity checks.
+     */
+    public boolean validateToken(String token) {
+        try {
+            Jwts.parser().verifyWith(getSigningKey()).build().parseSignedClaims(token);
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+}
+
+===== src/main/java/com/autoserviceos/api/iam/interfaces/rest/AuthController.java =====
+package com.autoserviceos.api.iam.interfaces.rest;
+
+import com.autoserviceos.api.iam.application.commands.SignUpCommand;
+import com.autoserviceos.api.iam.application.commandservices.IamCommandService;
+import com.autoserviceos.api.iam.interfaces.rest.resources.SignInResource;
+import com.autoserviceos.api.iam.interfaces.rest.resources.SignUpResource;
+import com.autoserviceos.api.iam.interfaces.rest.resources.SignUpWorkshopResource;
+import com.autoserviceos.api.iam.interfaces.rest.transform.UserResourceAssembler;
+import com.autoserviceos.api.tenantmanagement.application.commands.CreateWorkshopCommand;
+import com.autoserviceos.api.tenantmanagement.application.commandservices.WorkshopCommandService;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.Map;
+
+/**
+ * Exposes entry authentication checkpoints handlers inside web api execution contexts.
+ */
+@RestController
+@RequestMapping("/api/v1/auth")
+@Tag(name = "Authentication", description = "Entry verification operations endpoints.")
+public class AuthController {
+
+    private final IamCommandService iamCommandService;
+    private final WorkshopCommandService workshopCommandService;
+
+    public AuthController(IamCommandService iamCommandService, WorkshopCommandService workshopCommandService) {
+        this.iamCommandService = iamCommandService;
+        this.workshopCommandService = workshopCommandService;
+    }
+
+    @PostMapping("/sign-in")
+    public ResponseEntity<?> signIn(@Valid @RequestBody SignInResource resource) {
+        var command = UserResourceAssembler.toCommandFromResource(resource);
+        var result = iamCommandService.handle(command);
+
+        if (result.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(Map.of("message", "Email or password is incorrect"));
+        }
+
+        // Simulating cross-context lookup for mechanic profile if the user's role requires it
+        Long simulatedMechanicId = "mechanic".equalsIgnoreCase(result.get().user().getRole()) ? 45L : null;
+        var responseBody = UserResourceAssembler.toResourceFromResult(result.get(), simulatedMechanicId);
+        return ResponseEntity.ok(responseBody);
+    }
+
+    @PostMapping("/sign-up")
+    public ResponseEntity<?> signUp(@Valid @RequestBody SignUpResource resource) {
+        var command = UserResourceAssembler.toCommandFromResource(resource);
+        var user = iamCommandService.handle(command);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(Map.of("message", "User created successfully", "userId", user.getId()));
+    }
+
+    @PostMapping("/register-workshop")
+    public ResponseEntity<?> registerWorkshop(@Valid @RequestBody SignUpWorkshopResource resource) {
+        // 1. Coordinate the creation of the workshop tenant structure
+        var createWorkshopCommand = new CreateWorkshopCommand(resource.workshopName());
+        var workshopOptional = workshopCommandService.handle(createWorkshopCommand);
+
+        if (workshopOptional.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(Map.of("message", "Could not create workshop corporate structure."));
+        }
+
+        var createdWorkshop = workshopOptional.get();
+
+        // 2. Cascade create the primary administrator account aligned with the new workshop's operational tenant identity
+        var signUpAdminCommand = new SignUpCommand(
+                resource.email(),
+                resource.password(),
+                "admin",
+                createdWorkshop.getTenantId()
+        );
+        var user = iamCommandService.handle(signUpAdminCommand);
+
+        return ResponseEntity.status(HttpStatus.CREATED).body(Map.of(
+                "message", "Workshop and admin account created successfully",
+                "workshopId", createdWorkshop.getTenantId(),
+                "userId", user.getId()
+        ));
+    }
+}
+
+===== src/main/java/com/autoserviceos/api/iam/interfaces/rest/resources/AuthenticatedUserResource.java =====
+package com.autoserviceos.api.iam.interfaces.rest.resources;
+
+/**
+ * Response payload carrying token tokens profiles metadata returned on success criteria operations.
+ */
+public record AuthenticatedUserResource(Long id, String email, String role, String workshopId, Long mechanicId, String token) {
+}
+
+===== src/main/java/com/autoserviceos/api/iam/interfaces/rest/resources/CreateUserResponse.java =====
+package com.autoserviceos.api.iam.interfaces.rest.resources;
+
+/**
+ * Representation instance tracking response status confirmation indicators.
+ */
+public record CreateUserResponse(String message, Long userId) {
+}
+
+===== src/main/java/com/autoserviceos/api/iam/interfaces/rest/resources/SignInResource.java =====
+package com.autoserviceos.api.iam.interfaces.rest.resources;
+
+import jakarta.validation.constraints.NotBlank;
+
+/**
+ * Request criteria record payload mapping login identification credentials parameters.
+ */
+public record SignInResource(@NotBlank String email, @NotBlank String password) {
+}
+
+===== src/main/java/com/autoserviceos/api/iam/interfaces/rest/resources/SignUpResource.java =====
+package com.autoserviceos.api.iam.interfaces.rest.resources;
+
+import jakarta.validation.constraints.NotBlank;
+
+/**
+ * Request model carrying registration data definitions used to initialize basic user profiles.
+ */
+public record SignUpResource(@NotBlank String email, @NotBlank String password, @NotBlank String role, @NotBlank String workshopId) {
+}
+
+===== src/main/java/com/autoserviceos/api/iam/interfaces/rest/resources/SignUpWorkshopResource.java =====
+package com.autoserviceos.api.iam.interfaces.rest.resources;
+
+import jakarta.validation.constraints.NotBlank;
+
+/**
+ * Request payload structure used to create a company account scope alongside its primary administrator credentials.
+ */
+public record SignUpWorkshopResource(@NotBlank String workshopName, @NotBlank String email, @NotBlank String password) {
+}
+
+===== src/main/java/com/autoserviceos/api/iam/interfaces/rest/transform/UserResourceAssembler.java =====
+package com.autoserviceos.api.iam.interfaces.rest.transform;
+
+import com.autoserviceos.api.iam.application.commands.AuthenticationResult;
+import com.autoserviceos.api.iam.application.commands.SignInCommand;
+import com.autoserviceos.api.iam.application.commands.SignUpCommand;
+import com.autoserviceos.api.iam.interfaces.rest.resources.AuthenticatedUserResource;
+import com.autoserviceos.api.iam.interfaces.rest.resources.SignInResource;
+import com.autoserviceos.api.iam.interfaces.rest.resources.SignUpResource;
+
+/**
+ * Data mapping component translating representation layouts between infrastructure boundaries.
+ */
+public class UserResourceAssembler {
+
+    public static SignInCommand toCommandFromResource(SignInResource resource) {
+        return new SignInCommand(resource.email(), resource.password());
+    }
+
+    public static SignUpCommand toCommandFromResource(SignUpResource resource) {
+        return new SignUpCommand(resource.email(), resource.password(), resource.role(), resource.workshopId());
+    }
+
+    public static AuthenticatedUserResource toResourceFromResult(AuthenticationResult result, Long mechanicId) {
+        return new AuthenticatedUserResource(
+                result.user().getId(),
+                result.user().getEmail(),
+                result.user().getRole(),
+                result.user().getWorkshopId(),
+                mechanicId,
+                result.token()
+        );
+    }
+}
+
+===== src/main/java/com/autoserviceos/api/inventorymanagement/application/commands/CreateInventoryItemCommand.java =====
+package com.autoserviceos.api.inventorymanagement.application.commands;
+import java.math.BigDecimal;
+/** Command to register a new inventory item into the global catalog. */
+public record CreateInventoryItemCommand(String name, String category, String brand,
+                                         BigDecimal unitPrice, Integer stock, Integer minStock, String image) {}
+
+===== src/main/java/com/autoserviceos/api/inventorymanagement/application/commands/DeleteInventoryItemCommand.java =====
+package com.autoserviceos.api.inventorymanagement.application.commands;
+/** Command to remove an inventory item from the catalog data storage. */
+public record DeleteInventoryItemCommand(Long id) {}
+
+===== src/main/java/com/autoserviceos/api/inventorymanagement/application/commands/UpdateInventoryItemCommand.java =====
+package com.autoserviceos.api.inventorymanagement.application.commands;
+import java.math.BigDecimal;
+/** Command to update an existing inventory item's specifications and constraints. */
+public record UpdateInventoryItemCommand(Long id, String name, String category, String brand,
+                                         BigDecimal unitPrice, Integer stock, Integer minStock, String image) {}
+
+===== src/main/java/com/autoserviceos/api/inventorymanagement/application/commandservices/InventoryItemCommandService.java =====
+package com.autoserviceos.api.inventorymanagement.application.commandservices;
+
+import com.autoserviceos.api.inventorymanagement.application.commands.*;
+import com.autoserviceos.api.inventorymanagement.domain.model.aggregates.InventoryItem;
+import java.util.Optional;
+
+/** Service contract for managing inventory item domain write operations. */
+public interface InventoryItemCommandService {
+    InventoryItem handle(CreateInventoryItemCommand command);
+    Optional<InventoryItem> handle(UpdateInventoryItemCommand command);
+    void handle(DeleteInventoryItemCommand command);
+}
+
+===== src/main/java/com/autoserviceos/api/inventorymanagement/application/internal/commandservices/InventoryItemCommandServiceImpl.java =====
+package com.autoserviceos.api.inventorymanagement.application.internal.commandservices;
+
+import com.autoserviceos.api.inventorymanagement.application.commandservices.InventoryItemCommandService;
+import com.autoserviceos.api.inventorymanagement.application.commands.*;
+import com.autoserviceos.api.inventorymanagement.domain.model.aggregates.InventoryItem;
+import com.autoserviceos.api.inventorymanagement.domain.model.repositories.InventoryItemRepository;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.Optional;
+
+/** Implementation coordinating inventory item creation, updates, and deletions. */
+@Service
+public class InventoryItemCommandServiceImpl implements InventoryItemCommandService {
+
+    private final InventoryItemRepository inventoryItemRepository;
+
+    public InventoryItemCommandServiceImpl(InventoryItemRepository inventoryItemRepository) {
+        this.inventoryItemRepository = inventoryItemRepository;
+    }
+
+    @Override
+    @Transactional
+    public InventoryItem handle(CreateInventoryItemCommand command) {
+        var item = InventoryItem.create(command.name(), command.category(), command.brand(),
+                command.unitPrice(), command.stock(), command.minStock(), command.image());
+        return inventoryItemRepository.save(item);
+    }
+
+    @Override
+    @Transactional
+    public Optional<InventoryItem> handle(UpdateInventoryItemCommand command) {
+        var result = inventoryItemRepository.findById(command.id());
+        if (result.isEmpty()) return Optional.empty();
+
+        var item = result.get();
+        item.update(command.name(), command.category(), command.brand(),
+                command.unitPrice(), command.stock(), command.minStock(), command.image());
+        return Optional.of(inventoryItemRepository.save(item));
+    }
+
+    @Override
+    @Transactional
+    public void handle(DeleteInventoryItemCommand command) {
+        inventoryItemRepository.findById(command.id()).ifPresent(inventoryItemRepository::delete);
+    }
+}
+
+===== src/main/java/com/autoserviceos/api/inventorymanagement/application/internal/queryservices/InventoryItemQueryServiceImpl.java =====
+package com.autoserviceos.api.inventorymanagement.application.internal.queryservices;
+
+import com.autoserviceos.api.inventorymanagement.application.queryservices.InventoryItemQueryService;
+import com.autoserviceos.api.inventorymanagement.application.queries.*;
+import com.autoserviceos.api.inventorymanagement.domain.model.aggregates.InventoryItem;
+import com.autoserviceos.api.inventorymanagement.domain.model.repositories.InventoryItemRepository;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+import java.util.Optional;
+
+/** Implementation executing read-only database queries for inventory catalog information. */
+@Service
+@Transactional(readOnly = true)
+public class InventoryItemQueryServiceImpl implements InventoryItemQueryService {
+
+    private final InventoryItemRepository inventoryItemRepository;
+
+    public InventoryItemQueryServiceImpl(InventoryItemRepository inventoryItemRepository) {
+        this.inventoryItemRepository = inventoryItemRepository;
+    }
+
+    @Override
+    public Optional<InventoryItem> handle(GetInventoryItemByIdQuery query) {
+        return inventoryItemRepository.findById(query.id());
+    }
+
+    @Override
+    public List<InventoryItem> handle(GetAllInventoryItemsQuery query) {
+        return inventoryItemRepository.findAll();
+    }
+}
+
+===== src/main/java/com/autoserviceos/api/inventorymanagement/application/queries/GetAllInventoryItemsQuery.java =====
+package com.autoserviceos.api.inventorymanagement.application.queries;
+/** Query to retrieve all inventory items registered in the catalog. */
+public record GetAllInventoryItemsQuery() {}
+
+===== src/main/java/com/autoserviceos/api/inventorymanagement/application/queries/GetInventoryItemByIdQuery.java =====
+package com.autoserviceos.api.inventorymanagement.application.queries;
+/** Query to retrieve a specific inventory item by its unique identifier. */
+public record GetInventoryItemByIdQuery(Long id) {}
+
+===== src/main/java/com/autoserviceos/api/inventorymanagement/application/queryservices/InventoryItemQueryService.java =====
+package com.autoserviceos.api.inventorymanagement.application.queryservices;
+
+import com.autoserviceos.api.inventorymanagement.application.queries.*;
+import com.autoserviceos.api.inventorymanagement.domain.model.aggregates.InventoryItem;
+import java.util.List;
+import java.util.Optional;
+
+/** Service contract for managing inventory item domain read operations. */
+public interface InventoryItemQueryService {
+    Optional<InventoryItem> handle(GetInventoryItemByIdQuery query);
+    List<InventoryItem> handle(GetAllInventoryItemsQuery query);
+}
+
+===== src/main/java/com/autoserviceos/api/inventorymanagement/domain/model/aggregates/InventoryItem.java =====
+package com.autoserviceos.api.inventorymanagement.domain.model.aggregates;
+
+import java.math.BigDecimal;
+import java.util.Random;
+
+/**
+ * Aggregate root representing an Inventory Item within the Inventory Management domain.
+ * Safeguards stock constraints, pricing logic, and SKU generation.
+ */
+public class InventoryItem {
+
+    private final Long id;
+    private final String sku;
+    private String name;
+    private String category;
+    private String brand;
+    private BigDecimal unitPrice;
+    private Integer stock;
+    private Integer minStock;
+    private String image;
+
+    private InventoryItem(Long id, String sku, String name, String category, String brand, BigDecimal unitPrice, Integer stock, Integer minStock, String image) {
+        this.id = id;
+        this.sku = sku;
+        this.name = name;
+        this.category = category;
+        this.brand = brand;
+        this.unitPrice = unitPrice;
+        this.stock = stock;
+        this.minStock = minStock;
+        this.image = image;
+    }
+
+    /**
+     * Factory method to initialize a new Inventory Item.
+     * Automatically generates a unique internal SKU code.
+     */
+    public static InventoryItem create(String name, String category, String brand,
+                                       BigDecimal unitPrice, Integer stock, Integer minStock, String image) {
+        String generatedSku = "SKU-" + (new Random().nextInt(9000) + 1000);
+        return new InventoryItem(null, generatedSku, name, category, brand, unitPrice, stock, minStock, image);
+    }
+
+    /**
+     * Factory method to reconstruct an existing Inventory Item aggregate from persistence data.
+     */
+    public static InventoryItem rehydrate(Long id, String sku, String name, String category,
+                                          String brand, BigDecimal unitPrice, Integer stock, Integer minStock, String image) {
+        return new InventoryItem(id, sku, name, category, brand, unitPrice, stock, minStock, image);
+    }
+
+    /**
+     * Updates the stock details, pricing structure, and metadata tracking configurations.
+     */
+    public void update(String name, String category, String brand, BigDecimal unitPrice, Integer stock, Integer minStock, String image) {
+        this.name = name;
+        this.category = category;
+        this.brand = brand;
+        this.unitPrice = unitPrice;
+        this.stock = stock;
+        this.minStock = minStock;
+        this.image = image;
+    }
+
+    // Getters
+    public Long getId() { return id; }
+    public String getSku() { return sku; }
+    public String getName() { return name; }
+    public String getCategory() { return category; }
+    public String getBrand() { return brand; }
+    public BigDecimal getUnitPrice() { return unitPrice; }
+    public Integer getStock() { return stock; }
+    public Integer getMinStock() { return minStock; }
+    public String getImage() { return image; }
+}
+
+===== src/main/java/com/autoserviceos/api/inventorymanagement/domain/model/repositories/InventoryItemRepository.java =====
+package com.autoserviceos.api.inventorymanagement.domain.model.repositories;
+
+import com.autoserviceos.api.inventorymanagement.domain.model.aggregates.InventoryItem;
+import java.util.List;
+import java.util.Optional;
+
+/**
+ * Domain repository port defining the persistence contract for managing InventoryItem entities.
+ */
+public interface InventoryItemRepository {
+    InventoryItem save(InventoryItem item);
+    Optional<InventoryItem> findById(Long id);
+    List<InventoryItem> findAll();
+    void delete(InventoryItem item);
+}
+
+===== src/main/java/com/autoserviceos/api/inventorymanagement/infrastructure/persistence/jpa/InventoryItemPersistenceAdapter.java =====
+package com.autoserviceos.api.inventorymanagement.infrastructure.persistence.jpa;
+
+import com.autoserviceos.api.inventorymanagement.domain.model.aggregates.InventoryItem;
+import com.autoserviceos.api.inventorymanagement.domain.model.repositories.InventoryItemRepository;
+import com.autoserviceos.api.inventorymanagement.infrastructure.persistence.jpa.mappers.InventoryItemPersistenceMapper;
+import com.autoserviceos.api.inventorymanagement.infrastructure.persistence.jpa.repositories.SpringDataInventoryItemRepository;
+import org.springframework.stereotype.Component;
+
+import java.util.List;
+import java.util.Optional;
+
+@Component
+public class InventoryItemPersistenceAdapter implements InventoryItemRepository {
+    private final SpringDataInventoryItemRepository repository;
+
+    public InventoryItemPersistenceAdapter(SpringDataInventoryItemRepository repository) {
+        this.repository = repository;
+    }
+
+    @Override
+    public InventoryItem save(InventoryItem item) {
+        var entity = InventoryItemPersistenceMapper.toJpaEntity(item);
+        return InventoryItemPersistenceMapper.toDomain(repository.save(entity));
+    }
+
+    @Override
+    public Optional<InventoryItem> findById(Long id) {
+        return repository.findById(id).map(InventoryItemPersistenceMapper::toDomain);
+    }
+
+    @Override
+    public List<InventoryItem> findAll() {
+        return repository.findAll().stream().map(InventoryItemPersistenceMapper::toDomain).toList();
+    }
+
+    @Override
+    public void delete(InventoryItem item) {
+        repository.deleteById(item.getId());
+    }
+}
+
+===== src/main/java/com/autoserviceos/api/inventorymanagement/infrastructure/persistence/jpa/entities/InventoryItemJpaEntity.java =====
+package com.autoserviceos.api.inventorymanagement.infrastructure.persistence.jpa.entities;
+
+import com.autoserviceos.api.shared.domain.model.entities.AuditableModel;
+import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import java.math.BigDecimal;
+
+/** JPA entity mapped to the inventory_items table in the database. */
+@Getter
+@Entity
+@NoArgsConstructor
+@Table(name = "inventory_items")
+public class InventoryItemJpaEntity extends AuditableModel {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(nullable = false, unique = true, length = 20)
+    private String sku;
+
+    @Column(nullable = false, length = 150)
+    private String name;
+
+    @Column(nullable = false, length = 50)
+    private String category;
+
+    @Column(nullable = false, length = 50)
+    private String brand;
+
+    @Column(nullable = false, precision = 10, scale = 2)
+    private BigDecimal unitPrice;
+
+    @Column(nullable = false)
+    private Integer stock;
+
+    @Column(nullable = false)
+    private Integer minStock;
+
+    @Column(columnDefinition = "TEXT")
+    private String image;
+
+    public InventoryItemJpaEntity(Long id, String sku, String name, String category, String brand,
+                                  BigDecimal unitPrice, Integer stock, Integer minStock, String image) {
+        this.id = id;
+        this.sku = sku;
+        this.name = name;
+        this.category = category;
+        this.brand = brand;
+        this.unitPrice = unitPrice;
+        this.stock = stock;
+        this.minStock = minStock;
+        this.image = image;
+    }
+}
+
+===== src/main/java/com/autoserviceos/api/inventorymanagement/infrastructure/persistence/jpa/mappers/InventoryItemPersistenceMapper.java =====
+package com.autoserviceos.api.inventorymanagement.infrastructure.persistence.jpa.mappers;
+
+import com.autoserviceos.api.inventorymanagement.domain.model.aggregates.InventoryItem;
+import com.autoserviceos.api.inventorymanagement.infrastructure.persistence.jpa.entities.InventoryItemJpaEntity;
+
+public final class InventoryItemPersistenceMapper {
+    private InventoryItemPersistenceMapper() {}
+
+    public static InventoryItemJpaEntity toJpaEntity(InventoryItem aggregate) {
+        return new InventoryItemJpaEntity(aggregate.getId(), aggregate.getSku(), aggregate.getName(),
+                aggregate.getCategory(), aggregate.getBrand(), aggregate.getUnitPrice(),
+                aggregate.getStock(), aggregate.getMinStock(), aggregate.getImage()); // ← agregar
+    }
+
+    public static InventoryItem toDomain(InventoryItemJpaEntity entity) {
+        return InventoryItem.rehydrate(entity.getId(), entity.getSku(), entity.getName(),
+                entity.getCategory(), entity.getBrand(), entity.getUnitPrice(),
+                entity.getStock(), entity.getMinStock(), entity.getImage()); // ← agregar
+    }
+}
+
+===== src/main/java/com/autoserviceos/api/inventorymanagement/infrastructure/persistence/jpa/repositories/SpringDataInventoryItemRepository.java =====
+package com.autoserviceos.api.inventorymanagement.infrastructure.persistence.jpa.repositories;
+import com.autoserviceos.api.inventorymanagement.infrastructure.persistence.jpa.entities.InventoryItemJpaEntity;
+import org.springframework.data.jpa.repository.JpaRepository;
+public interface SpringDataInventoryItemRepository extends JpaRepository<InventoryItemJpaEntity, Long> {}
+
+===== src/main/java/com/autoserviceos/api/inventorymanagement/interfaces/rest/InventoryItemsController.java =====
+package com.autoserviceos.api.inventorymanagement.interfaces.rest;
+
+import com.autoserviceos.api.inventorymanagement.application.commands.DeleteInventoryItemCommand;
+import com.autoserviceos.api.inventorymanagement.application.commandservices.InventoryItemCommandService;
+import com.autoserviceos.api.inventorymanagement.application.queries.GetAllInventoryItemsQuery;
+import com.autoserviceos.api.inventorymanagement.application.queries.GetInventoryItemByIdQuery;
+import com.autoserviceos.api.inventorymanagement.application.queryservices.InventoryItemQueryService;
+import com.autoserviceos.api.inventorymanagement.interfaces.rest.resources.CreateInventoryItemResource;
+import com.autoserviceos.api.inventorymanagement.interfaces.rest.resources.UpdateInventoryItemResource;
+import com.autoserviceos.api.inventorymanagement.interfaces.rest.transform.InventoryItemResourceAssembler;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+/**
+ * Exposes RESTful endpoints for managing warehouse inventory items.
+ */
+@RestController
+@RequestMapping("/api/v1/inventory-items")
+@Tag(name = "Inventory Items", description = "Endpoints for managing warehouse catalog and stock")
+public class InventoryItemsController {
+
+    private final InventoryItemCommandService inventoryItemCommandService;
+    private final InventoryItemQueryService inventoryItemQueryService;
+
+    public InventoryItemsController(InventoryItemCommandService inventoryItemCommandService, InventoryItemQueryService inventoryItemQueryService) {
+        this.inventoryItemCommandService = inventoryItemCommandService;
+        this.inventoryItemQueryService = inventoryItemQueryService;
+    }
+
+    @PostMapping
+    public ResponseEntity<?> createInventoryItem(@Valid @RequestBody CreateInventoryItemResource resource) {
+        var command = InventoryItemResourceAssembler.toCommandFromResource(resource);
+        var item = inventoryItemCommandService.handle(command);
+        return ResponseEntity.status(HttpStatus.CREATED).body(InventoryItemResourceAssembler.toResourceFromEntity(item));
+    }
+
+    @GetMapping
+    public ResponseEntity<?> getAllInventoryItems() {
+        var items = inventoryItemQueryService.handle(new GetAllInventoryItemsQuery());
+        var resources = items.stream().map(InventoryItemResourceAssembler::toResourceFromEntity).toList();
+        return ResponseEntity.ok(resources);
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<?> getInventoryItemById(@PathVariable Long id) {
+        var item = inventoryItemQueryService.handle(new GetInventoryItemByIdQuery(id));
+        if (item.isEmpty()) return ResponseEntity.notFound().build();
+        return ResponseEntity.ok(InventoryItemResourceAssembler.toResourceFromEntity(item.get()));
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<?> updateInventoryItem(@PathVariable Long id, @Valid @RequestBody UpdateInventoryItemResource resource) {
+        var command = InventoryItemResourceAssembler.toCommandFromResource(id, resource);
+        var item = inventoryItemCommandService.handle(command);
+        if (item.isEmpty()) return ResponseEntity.notFound().build();
+        return ResponseEntity.ok(InventoryItemResourceAssembler.toResourceFromEntity(item.get()));
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<?> deleteInventoryItem(@PathVariable Long id) {
+        inventoryItemCommandService.handle(new DeleteInventoryItemCommand(id));
+        return ResponseEntity.noContent().build();
+    }
+}
+
+===== src/main/java/com/autoserviceos/api/inventorymanagement/interfaces/rest/resources/CreateInventoryItemResource.java =====
+package com.autoserviceos.api.inventorymanagement.interfaces.rest.resources;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import java.math.BigDecimal;
+
+public record CreateInventoryItemResource(
+        @NotBlank String name, @NotBlank String category, @NotBlank String brand,
+        @NotNull @Min(0) BigDecimal unitPrice, @NotNull @Min(0) Integer stock, @NotNull @Min(0) Integer minStock,
+        String image
+) {}
+
+===== src/main/java/com/autoserviceos/api/inventorymanagement/interfaces/rest/resources/InventoryItemResource.java =====
+package com.autoserviceos.api.inventorymanagement.interfaces.rest.resources;
+import java.math.BigDecimal;
+
+public record InventoryItemResource(
+        Long id, String sku, String name, String category, String brand,
+        BigDecimal unitPrice, Integer stock, Integer minStock, String image
+) {}
+
+===== src/main/java/com/autoserviceos/api/inventorymanagement/interfaces/rest/resources/UpdateInventoryItemResource.java =====
+package com.autoserviceos.api.inventorymanagement.interfaces.rest.resources;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import java.math.BigDecimal;
+
+public record UpdateInventoryItemResource(
+        @NotBlank String name, @NotBlank String category, @NotBlank String brand,
+        @NotNull @Min(0) BigDecimal unitPrice, @NotNull @Min(0) Integer stock, @NotNull @Min(0) Integer minStock,
+        String image
+) {}
+
+===== src/main/java/com/autoserviceos/api/inventorymanagement/interfaces/rest/transform/InventoryItemResourceAssembler.java =====
+package com.autoserviceos.api.inventorymanagement.interfaces.rest.transform;
+
+import com.autoserviceos.api.inventorymanagement.application.commands.CreateInventoryItemCommand;
+import com.autoserviceos.api.inventorymanagement.application.commands.UpdateInventoryItemCommand;
+import com.autoserviceos.api.inventorymanagement.domain.model.aggregates.InventoryItem;
+import com.autoserviceos.api.inventorymanagement.interfaces.rest.resources.CreateInventoryItemResource;
+import com.autoserviceos.api.inventorymanagement.interfaces.rest.resources.InventoryItemResource;
+import com.autoserviceos.api.inventorymanagement.interfaces.rest.resources.UpdateInventoryItemResource;
+
+public class InventoryItemResourceAssembler {
+    public static InventoryItemResource toResourceFromEntity(InventoryItem entity) {
+        return new InventoryItemResource(entity.getId(), entity.getSku(), entity.getName(),
+                entity.getCategory(), entity.getBrand(), entity.getUnitPrice(),
+                entity.getStock(), entity.getMinStock(), entity.getImage());
+    }
+
+    public static CreateInventoryItemCommand toCommandFromResource(CreateInventoryItemResource resource) {
+        return new CreateInventoryItemCommand(resource.name(), resource.category(), resource.brand(),
+                resource.unitPrice(), resource.stock(), resource.minStock(), resource.image() != null ? resource.image() : "");
+    }
+
+    public static UpdateInventoryItemCommand toCommandFromResource(Long id, UpdateInventoryItemResource resource) {
+        return new UpdateInventoryItemCommand(id, resource.name(), resource.category(), resource.brand(),
+                resource.unitPrice(), resource.stock(), resource.minStock(), resource.image() != null ? resource.image() : "");
+    }
+}
+
+===== src/main/java/com/autoserviceos/api/publictracking/interfaces/rest/TrackingController.java =====
+package com.autoserviceos.api.publictracking.interfaces.rest;
+
+import com.autoserviceos.api.customermanagement.application.queries.GetCustomerByIdQuery;
+import com.autoserviceos.api.customermanagement.application.queryservices.CustomerQueryService;
+import com.autoserviceos.api.fleetmanagement.application.queries.GetVehicleByIdQuery;
+import com.autoserviceos.api.fleetmanagement.application.queryservices.VehicleQueryService;
+import com.autoserviceos.api.fleetmanagement.interfaces.rest.resources.VehicleResource;
+import com.autoserviceos.api.fleetmanagement.interfaces.rest.transform.VehicleResourceAssembler;
+import com.autoserviceos.api.publictracking.interfaces.rest.resources.TrackingCustomerResource;
+import com.autoserviceos.api.publictracking.interfaces.rest.resources.TrackingWorkshopResource;
+import com.autoserviceos.api.tenantmanagement.domain.model.repositories.WorkshopRepository;
+
+// TODO: Import these once WorkshopOperations context is migrated
+// import com.autoserviceos.api.workshopoperations.application.queries.GetAllWorkOrdersQuery;
+// import com.autoserviceos.api.workshopoperations.application.queries.GetTasksByWorkOrderIdQuery;
+// import com.autoserviceos.api.workshopoperations.application.queryservices.WorkOrderQueryService;
+// import com.autoserviceos.api.workshopoperations.application.queryservices.TaskQueryService;
+
+import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+/**
+ * Exposes public RESTful endpoints for customers to track their vehicle's repair status
+ * without requiring system authentication.
+ */
+@RestController
+@RequestMapping("/api/v1/tracking")
+@Tag(name = "Public Tracking", description = "Public endpoints for order and vehicle status tracking")
+public class TrackingController {
+
+    private final VehicleQueryService vehicleQueryService;
+    private final CustomerQueryService customerQueryService;
+    private final WorkshopRepository workshopRepository;
+
+    // private final WorkOrderQueryService workOrderQueryService;
+    // private final TaskQueryService taskQueryService;
+
+    public TrackingController(
+            VehicleQueryService vehicleQueryService,
+            CustomerQueryService customerQueryService,
+            WorkshopRepository workshopRepository
+            /*, WorkOrderQueryService workOrderQueryService, TaskQueryService taskQueryService */) {
+
+        this.vehicleQueryService = vehicleQueryService;
+        this.customerQueryService = customerQueryService;
+        this.workshopRepository = workshopRepository;
+        // this.workOrderQueryService = workOrderQueryService;
+        // this.taskQueryService = taskQueryService;
+    }
+
+    @GetMapping("/orders/{trackingCode}")
+    public ResponseEntity<?> getOrderByTrackingCode(@PathVariable String trackingCode) {
+        // TODO: Uncomment and implement when WorkshopOperations is migrated
+        /*
+        var orders = workOrderQueryService.handle(new GetAllWorkOrdersQuery());
+        var matchedOrder = orders.stream()
+                .filter(o -> trackingCode.equals(o.getTrackingCode()))
+                .findFirst();
+
+        if (matchedOrder.isEmpty()) return ResponseEntity.notFound().build();
+        return ResponseEntity.ok(List.of(matchedOrder.get()));
+        */
+        return ResponseEntity.status(501).body("Not Implemented Yet - Pending WorkshopOperations Module");
+    }
+
+    @GetMapping("/vehicles/{id}")
+    public ResponseEntity<?> getVehicle(@PathVariable Long id) {
+        var vehicle = vehicleQueryService.handle(new GetVehicleByIdQuery(id));
+        if (vehicle.isEmpty()) return ResponseEntity.notFound().build();
+
+        VehicleResource resource = VehicleResourceAssembler.toResourceFromEntity(vehicle.get());
+        return ResponseEntity.ok(resource);
+    }
+
+    @GetMapping("/tasks")
+    public ResponseEntity<?> getTasksByOrder(@RequestParam Long workOrderId) {
+        // TODO: Uncomment and implement when WorkshopOperations is migrated
+        /*
+        var tasks = taskQueryService.handle(new GetTasksByWorkOrderIdQuery(workOrderId));
+        return ResponseEntity.ok(tasks);
+        */
+        return ResponseEntity.status(501).body("Not Implemented Yet - Pending WorkshopOperations Module");
+    }
+
+    @GetMapping("/customers/{id}")
+    public ResponseEntity<?> getCustomer(@PathVariable Long id) {
+        var customer = customerQueryService.handle(new GetCustomerByIdQuery(id));
+        if (customer.isEmpty()) return ResponseEntity.notFound().build();
+
+        var resource = new TrackingCustomerResource(customer.get().getId(), customer.get().getFullName());
+        return ResponseEntity.ok(resource);
+    }
+
+    @GetMapping("/workshops/{id}")
+    public ResponseEntity<?> getWorkshop(@PathVariable String id) {
+        // Here 'id' corresponds to the generated TenantId (e.g. WS-XXXX)
+        var workshop = workshopRepository.findByTenantId(id);
+        if (workshop.isEmpty()) return ResponseEntity.notFound().build();
+
+        var resource = new TrackingWorkshopResource(workshop.get().getId(), workshop.get().getName());
+        return ResponseEntity.ok(resource);
+    }
+}
+
+===== src/main/java/com/autoserviceos/api/publictracking/interfaces/rest/resources/TrackingCustomerResource.java =====
+package com.autoserviceos.api.publictracking.interfaces.rest.resources;
+
+/**
+ * Lightweight response payload exposing limited customer details for public tracking views.
+ */
+public record TrackingCustomerResource(Long id, String fullName) {
+}
+
+===== src/main/java/com/autoserviceos/api/publictracking/interfaces/rest/resources/TrackingWorkshopResource.java =====
+package com.autoserviceos.api.publictracking.interfaces.rest.resources;
+
+/**
+ * Lightweight response payload exposing limited workshop details for public tracking views.
+ */
+public record TrackingWorkshopResource(Long id, String name) {
+}
+
+===== src/main/java/com/autoserviceos/api/shared/application/result/Result.java =====
+package com.autoserviceos.api.shared.application.result;
+
+import java.util.Optional;
+import java.util.function.Function;
+
+/**
+ * Envoltorio genérico para los resultados de la capa de aplicación.
+ *
+ * @param <T> tipo del valor de éxito
+ * @param <E> tipo del valor de falla
+ */
+public sealed interface Result<T, E> permits Result.Success, Result.Failure {
+
+    static <T, E> Result<T, E> success(T value) {
+        return new Success<>(value);
+    }
+
+    static <T, E> Result<T, E> failure(E error) {
+        return new Failure<>(error);
+    }
+
+    default boolean isSuccess() {
+        return this instanceof Success<?, ?>;
+    }
+
+    default boolean isFailure() {
+        return this instanceof Failure<?, ?>;
+    }
+
+    default Optional<T> success() {
+        if (this instanceof Success<?, ?> success) {
+            @SuppressWarnings("unchecked")
+            T value = ((Success<T, E>) success).value();
+            return Optional.of(value);
+        }
+        return Optional.empty();
+    }
+
+    default Optional<E> failure() {
+        if (this instanceof Failure<?, ?> failure) {
+            @SuppressWarnings("unchecked")
+            E error = ((Failure<T, E>) failure).error();
+            return Optional.of(error);
+        }
+        return Optional.empty();
+    }
+
+    default <R> R fold(Function<? super T, ? extends R> onSuccess, Function<? super E, ? extends R> onFailure) {
+        if (this instanceof Success<?, ?> success) {
+            @SuppressWarnings("unchecked")
+            T value = ((Success<T, E>) success).value();
+            return onSuccess.apply(value);
+        }
+        @SuppressWarnings("unchecked")
+        E error = ((Failure<T, E>) this).error();
+        return onFailure.apply(error);
+    }
+
+    record Success<T, E>(T value) implements Result<T, E> {
+    }
+
+    record Failure<T, E>(E error) implements Result<T, E> {
+    }
+}
+
+===== src/main/java/com/autoserviceos/api/shared/domain/model/entities/AuditableModel.java =====
+package com.autoserviceos.api.shared.domain.model.entities;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.EntityListeners;
+import jakarta.persistence.MappedSuperclass;
+import lombok.Getter;
+import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.annotation.LastModifiedDate;
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
+
+import java.util.Date;
+
+/**
+ * Base class for all JPA entities that require auditing.
+ * Automatically populates the createdAt and updatedAt fields when an entity is persisted or updated.
+ */
+@Getter
+@MappedSuperclass
+@EntityListeners(AuditingEntityListener.class)
+public class AuditableModel {
+
+    @CreatedDate
+    @Column(nullable = false, updatable = false)
+    private Date createdAt;
+
+    @LastModifiedDate
+    @Column(nullable = false)
+    private Date updatedAt;
+}
+
+===== src/main/java/com/autoserviceos/api/shared/infrastructure/documentation/openapi/configuration/OpenApiConfiguration.java =====
+package com.autoserviceos.api.shared.infrastructure.documentation.openapi.configuration;
+
+import io.swagger.v3.oas.models.ExternalDocumentation;
+import io.swagger.v3.oas.models.OpenAPI;
+import io.swagger.v3.oas.models.info.Info;
+import io.swagger.v3.oas.models.info.License;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
+/**
+ * Configuration class for OpenAPI (Swagger) documentation.
+ * Defines the global metadata for the AutoServiceOS API.
+ */
+@Configuration
+public class OpenApiConfiguration {
+
+    @Bean
+    public OpenAPI autoServiceOpenApi() {
+        return new OpenAPI()
+                .info(new Info()
+                        .title("AutoServiceOS API")
+                        .description("AutoServiceOS Platform application REST API documentation.")
+                        .version("v1.0.0")
+                        .license(new License().name("Apache 2.0").url("https://springdoc.org")))
+                .externalDocs(new ExternalDocumentation()
+                        .description("AutoServiceOS Platform Wiki Documentation")
+                        .url("https://autoserviceos.wiki.github.io/docs"));
+    }
+}
+
+===== src/main/java/com/autoserviceos/api/shared/infrastructure/persistence/jpa/configuration/JpaAuditingConfiguration.java =====
+package com.autoserviceos.api.shared.infrastructure.persistence.jpa.configuration;
+
+import org.springframework.context.annotation.Configuration;
+import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
+
+/**
+ * Configuration class to enable JPA Auditing.
+ * This allows Spring Data JPA to automatically populate auditing fields (like @CreatedDate).
+ */
+@Configuration
+@EnableJpaAuditing
+public class JpaAuditingConfiguration {
+}
+
+===== src/main/java/com/autoserviceos/api/shared/infrastructure/persistence/jpa/strategy/SnakeCasePhysicalNamingStrategy.java =====
+package com.autoserviceos.api.shared.infrastructure.persistence.jpa.strategy;
+
+import org.hibernate.boot.model.naming.Identifier;
+import org.hibernate.boot.model.naming.PhysicalNamingStrategy;
+import org.hibernate.engine.jdbc.env.spi.JdbcEnvironment;
+
+import static io.github.encryptorcode.pluralize.Pluralize.pluralize;
+
+public class SnakeCasePhysicalNamingStrategy implements PhysicalNamingStrategy {
+
+    @Override
+    public Identifier toPhysicalCatalogName(Identifier identifier, JdbcEnvironment jdbcEnvironment) {
+        return this.toSnakeCase(identifier);
+    }
+
+    @Override
+    public Identifier toPhysicalSchemaName(Identifier identifier, JdbcEnvironment jdbcEnvironment) {
+        return this.toSnakeCase(identifier);
+    }
+
+    @Override
+    public Identifier toPhysicalTableName(Identifier identifier, JdbcEnvironment jdbcEnvironment) {
+        return this.toSnakeCase(this.toPlural(identifier));
+    }
+
+    @Override
+    public Identifier toPhysicalSequenceName(Identifier identifier, JdbcEnvironment jdbcEnvironment) {
+        return this.toSnakeCase(identifier);
+    }
+
+    @Override
+    public Identifier toPhysicalColumnName(Identifier identifier, JdbcEnvironment jdbcEnvironment) {
+        return this.toSnakeCase(identifier);
+    }
+
+    private Identifier toSnakeCase(final Identifier identifier) {
+        if (identifier == null) return null;
+        final String regex = "([a-z])([A-Z])";
+        final String replacement = "$1_$2";
+        final String newName = identifier.getText()
+                .replaceAll(regex, replacement)
+                .toLowerCase();
+        return Identifier.toIdentifier(newName);
+    }
+
+    private Identifier toPlural(final Identifier identifier) {
+        final String newName = pluralize(identifier.getText());
+        return Identifier.toIdentifier(newName);
+    }
+}
+
+===== src/main/java/com/autoserviceos/api/shared/interfaces/rest/GlobalExceptionHandler.java =====
+package com.autoserviceos.api.shared.interfaces.rest;
+
+import org.springframework.context.MessageSource;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpStatusCode;
+import org.springframework.web.ErrorResponse;
+import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.ResponseStatus;
+import org.springframework.web.bind.annotation.RestControllerAdvice;
+import lombok.extern.slf4j.Slf4j;
+
+import java.util.Locale;
+import java.util.Objects;
+import java.util.stream.Collectors;
+
+/**
+ * Manejador global de excepciones que traduce los errores del dominio y de validación
+ * a respuestas HTTP estructuradas.
+ */
+@Slf4j
+@RestControllerAdvice
+public class GlobalExceptionHandler {
+    private final MessageSource messageSource;
+
+    public GlobalExceptionHandler(MessageSource messageSource) {
+        this.messageSource = messageSource;
+    }
+
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    ErrorResponse handleException(MethodArgumentNotValidException exception, Locale locale) {
+        String prefix = messageSource.getMessage("errors.found", null, locale);
+        String fields = exception.getFieldErrors().stream()
+                .map(fieldError -> messageSource.getMessage(fieldError, locale))
+                .collect(Collectors.joining(", "));
+
+        log.warn("Validation failed: {}", fields);
+        return ErrorResponse.create(
+                exception,
+                HttpStatusCode.valueOf(HttpStatus.BAD_REQUEST.value()),
+                prefix + " " + fields
+        );
+    }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    ErrorResponse handleException(IllegalArgumentException exception, Locale locale) {
+        String messageKey = exception.getMessage() != null ?
+                exception.getMessage() : "errors.found";
+        String message = Objects.requireNonNullElse(messageSource.getMessage(messageKey,
+                null, messageKey, locale), messageKey);
+
+        log.warn("Illegal argument: {}", message);
+        return ErrorResponse.create(exception, HttpStatusCode.valueOf(HttpStatus.BAD_REQUEST.value()), message);
+    }
+}
+
+===== src/main/java/com/autoserviceos/api/staffcoordination/application/commands/CreateMechanicCommand.java =====
+package com.autoserviceos.api.staffcoordination.application.commands;
+/** Command to register a new mechanic profile, including credentials generation payload. */
+public record CreateMechanicCommand(String fullName, String specialty, Integer maxCapacity, String email, String password, String workshopId) {}
+
+===== src/main/java/com/autoserviceos/api/staffcoordination/application/commands/DeleteMechanicCommand.java =====
+package com.autoserviceos.api.staffcoordination.application.commands;
+/** Command to remove a physical technician registration from the workshop. */
+public record DeleteMechanicCommand(Long id) {}
+
+===== src/main/java/com/autoserviceos/api/staffcoordination/application/commands/UpdateMechanicCommand.java =====
+package com.autoserviceos.api.staffcoordination.application.commands;
+/** Command to update an existing mechanic record profile properties. */
+public record UpdateMechanicCommand(Long id, String fullName, String specialty, Integer maxCapacity, String email) {}
+
+===== src/main/java/com/autoserviceos/api/staffcoordination/application/commandservices/MechanicCommandService.java =====
+package com.autoserviceos.api.staffcoordination.application.commandservices;
+
+import com.autoserviceos.api.staffcoordination.application.commands.*;
+import com.autoserviceos.api.staffcoordination.domain.model.aggregates.Mechanic;
+import java.util.Optional;
+
+public interface MechanicCommandService {
+    Mechanic handle(CreateMechanicCommand command);
+    Optional<Mechanic> handle(UpdateMechanicCommand command);
+    void handle(DeleteMechanicCommand command);
+}
+
+===== src/main/java/com/autoserviceos/api/staffcoordination/application/internal/commandservices/MechanicCommandServiceImpl.java =====
+package com.autoserviceos.api.staffcoordination.application.internal.commandservices;
+
+import com.autoserviceos.api.iam.application.commands.SignUpCommand;
+import com.autoserviceos.api.iam.application.commandservices.IamCommandService;
+import com.autoserviceos.api.staffcoordination.application.commandservices.MechanicCommandService;
+import com.autoserviceos.api.staffcoordination.application.commands.*;
+import com.autoserviceos.api.staffcoordination.domain.model.aggregates.Mechanic;
+import com.autoserviceos.api.staffcoordination.domain.model.repositories.MechanicRepository;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.Optional;
+
+/**
+ * Implementation orchestrating mechanic staff coordination and cross-context IAM synchronization.
+ */
+@Service
+public class MechanicCommandServiceImpl implements MechanicCommandService {
+
+    private final MechanicRepository mechanicRepository;
+    private final IamCommandService iamCommandService;
+
+    public MechanicCommandServiceImpl(MechanicRepository mechanicRepository, IamCommandService iamCommandService) {
+        this.mechanicRepository = mechanicRepository;
+        this.iamCommandService = iamCommandService;
+    }
+
+    @Override
+    @Transactional
+    public Mechanic handle(CreateMechanicCommand command) {
+        // 1. Cross-context sync: Create credentials first in the IAM context
+        var signUpCommand = new SignUpCommand(command.email(), command.password(), "mechanic", command.workshopId());
+        iamCommandService.handle(signUpCommand);
+
+        // 2. Persist mechanic aggregate domain metrics data state
+        var mechanic = Mechanic.create(command.fullName(), command.specialty(), command.maxCapacity(), command.email(), command.workshopId());
+        return mechanicRepository.save(mechanic);
+    }
+
+    @Override
+    @Transactional
+    public Optional<Mechanic> handle(UpdateMechanicCommand command) {
+        var result = mechanicRepository.findById(command.id());
+        if (result.isEmpty()) return Optional.empty();
+
+        var mechanic = result.get();
+        mechanic.update(command.fullName(), command.specialty(), command.maxCapacity(), command.email());
+        return Optional.of(mechanicRepository.save(mechanic));
+    }
+
+    @Override
+    @Transactional
+    public void handle(DeleteMechanicCommand command) {
+        mechanicRepository.findById(command.id()).ifPresent(mechanicRepository::delete);
+    }
+}
+
+===== src/main/java/com/autoserviceos/api/staffcoordination/application/internal/queryservices/MechanicQueryServiceImpl.java =====
+package com.autoserviceos.api.staffcoordination.application.internal.queryservices;
+
+import com.autoserviceos.api.staffcoordination.application.queryservices.MechanicQueryService;
+import com.autoserviceos.api.staffcoordination.application.queries.*;
+import com.autoserviceos.api.staffcoordination.domain.model.aggregates.Mechanic;
+import com.autoserviceos.api.staffcoordination.domain.model.repositories.MechanicRepository;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+import java.util.Optional;
+
+@Service
+@Transactional(readOnly = true)
+public class MechanicQueryServiceImpl implements MechanicQueryService {
+
+    private final MechanicRepository mechanicRepository;
+
+    public MechanicQueryServiceImpl(MechanicRepository mechanicRepository) {
+        this.mechanicRepository = mechanicRepository;
+    }
+
+    @Override
+    public Optional<Mechanic> handle(GetMechanicByIdQuery query) {
+        return mechanicRepository.findById(query.id());
+    }
+
+    @Override
+    public List<Mechanic> handle(GetAllMechanicsByWorkshopIdQuery query) {
+        return mechanicRepository.findAllByWorkshopId(query.workshopId());
+    }
+}
+
+===== src/main/java/com/autoserviceos/api/staffcoordination/application/queries/GetAllMechanicsByWorkshopIdQuery.java =====
+package com.autoserviceos.api.staffcoordination.application.queries;
+/** Query to retrieve all mechanics explicitly associated with a workshop scope. */
+public record GetAllMechanicsByWorkshopIdQuery(String workshopId) {}
+
+===== src/main/java/com/autoserviceos/api/staffcoordination/application/queries/GetMechanicByIdQuery.java =====
+package com.autoserviceos.api.staffcoordination.application.queries;
+/** Query to retrieve a specific mechanic by their unique identifier. */
+public record GetMechanicByIdQuery(Long id) {}
+
+===== src/main/java/com/autoserviceos/api/staffcoordination/application/queryservices/MechanicQueryService.java =====
+package com.autoserviceos.api.staffcoordination.application.queryservices;
+
+import com.autoserviceos.api.staffcoordination.application.queries.*;
+import com.autoserviceos.api.staffcoordination.domain.model.aggregates.Mechanic;
+import java.util.List;
+import java.util.Optional;
+
+public interface MechanicQueryService {
+    Optional<Mechanic> handle(GetMechanicByIdQuery query);
+    List<Mechanic> handle(GetAllMechanicsByWorkshopIdQuery query);
+}
+
+===== src/main/java/com/autoserviceos/api/staffcoordination/domain/model/aggregates/Mechanic.java =====
+package com.autoserviceos.api.staffcoordination.domain.model.aggregates;
+
+/**
+ * Aggregate root representing a Mechanic within the Staff Coordination domain.
+ * Manages the profile, capacity metrics, and workshop assignment of a technical staff member.
+ */
+public class Mechanic {
+
+    private final Long id;
+    private String fullName;
+    private String specialty;
+    private String email;
+    private Integer maxCapacity;
+    private final String workshopId;
+
+    private Mechanic(Long id, String fullName, String specialty, Integer maxCapacity, String email, String workshopId) {
+        this.id = id;
+        this.fullName = fullName;
+        this.specialty = specialty;
+        this.maxCapacity = maxCapacity;
+        this.email = email;
+        this.workshopId = workshopId;
+    }
+
+    /**
+     * Factory method to initialize a new Mechanic instance.
+     */
+    public static Mechanic create(String fullName, String specialty, Integer maxCapacity, String email, String workshopId) {
+        return new Mechanic(null, fullName, specialty, maxCapacity, email, workshopId);
+    }
+
+    /**
+     * Factory method to reconstruct an existing Mechanic aggregate from persistence data.
+     */
+    public static Mechanic rehydrate(Long id, String fullName, String specialty, Integer maxCapacity, String email, String workshopId) {
+        return new Mechanic(id, fullName, specialty, maxCapacity, email, workshopId);
+    }
+
+    /**
+     * Updates core profile structures, specialized capability metadata, and contact details records.
+     */
+    public void update(String fullName, String specialty, Integer maxCapacity, String email) {
+        this.fullName = fullName;
+        this.specialty = specialty;
+        this.maxCapacity = maxCapacity;
+        this.email = email;
+    }
+
+    // Getters
+    public Long getId() { return id; }
+    public String getFullName() { return fullName; }
+    public String getSpecialty() { return specialty; }
+    public Integer getMaxCapacity() { return maxCapacity; }
+    public String getEmail() { return email; }
+    public String getWorkshopId() { return workshopId; }
+}
+
+===== src/main/java/com/autoserviceos/api/staffcoordination/domain/model/repositories/MechanicRepository.java =====
+package com.autoserviceos.api.staffcoordination.domain.model.repositories;
+
+import com.autoserviceos.api.staffcoordination.domain.model.aggregates.Mechanic;
+import java.util.List;
+import java.util.Optional;
+
+/**
+ * Domain repository port defining the persistence contract for managing Mechanic entities.
+ */
+public interface MechanicRepository {
+    Mechanic save(Mechanic mechanic);
+    Optional<Mechanic> findById(Long id);
+    Optional<Mechanic> findByEmail(String email);
+    List<Mechanic> findAllByWorkshopId(String workshopId);
+    void delete(Mechanic mechanic);
+}
+
+===== src/main/java/com/autoserviceos/api/staffcoordination/infrastructure/persistence/jpa/MechanicPersistenceAdapter.java =====
+package com.autoserviceos.api.staffcoordination.infrastructure.persistence.jpa;
+
+import com.autoserviceos.api.staffcoordination.domain.model.aggregates.Mechanic;
+import com.autoserviceos.api.staffcoordination.domain.model.repositories.MechanicRepository;
+import com.autoserviceos.api.staffcoordination.infrastructure.persistence.jpa.mappers.MechanicPersistenceMapper;
+import com.autoserviceos.api.staffcoordination.infrastructure.persistence.jpa.repositories.SpringDataMechanicRepository;
+import org.springframework.stereotype.Component;
+
+import java.util.List;
+import java.util.Optional;
+
+@Component
+public class MechanicPersistenceAdapter implements MechanicRepository {
+    private final SpringDataMechanicRepository repository;
+
+    public MechanicPersistenceAdapter(SpringDataMechanicRepository repository) {
+        this.repository = repository;
+    }
+
+    @Override
+    public Mechanic save(Mechanic mechanic) {
+        var entity = MechanicPersistenceMapper.toJpaEntity(mechanic);
+        return MechanicPersistenceMapper.toDomain(repository.save(entity));
+    }
+
+    @Override
+    public Optional<Mechanic> findById(Long id) {
+        return repository.findById(id).map(MechanicPersistenceMapper::toDomain);
+    }
+
+    @Override
+    public Optional<Mechanic> findByEmail(String email) {
+        return repository.findByEmail(email).map(MechanicPersistenceMapper::toDomain);
+    }
+
+    @Override
+    public List<Mechanic> findAllByWorkshopId(String workshopId) {
+        return repository.findAllByWorkshopId(workshopId).stream()
+                .map(MechanicPersistenceMapper::toDomain)
+                .toList();
+    }
+
+    @Override
+    public void delete(Mechanic mechanic) {
+        repository.deleteById(mechanic.getId());
+    }
+}
+
+===== src/main/java/com/autoserviceos/api/staffcoordination/infrastructure/persistence/jpa/entities/MechanicJpaEntity.java =====
+package com.autoserviceos.api.staffcoordination.infrastructure.persistence.jpa.entities;
+
+import com.autoserviceos.api.shared.domain.model.entities.AuditableModel;
+import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+
+/** JPA entity representing the technical staff profile data store table. */
+@Getter
+@Entity
+@NoArgsConstructor
+@Table(name = "mechanics")
+public class MechanicJpaEntity extends AuditableModel {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(nullable = false, length = 150)
+    private String fullName;
+
+    @Column(nullable = false, length = 100)
+    private String specialty;
+
+    @Column(nullable = false, unique = true, length = 100)
+    private String email;
+
+    @Column(nullable = false)
+    private Integer maxCapacity;
+
+    @Column(nullable = false, length = 50)
+    private String workshopId;
+
+    public MechanicJpaEntity(Long id, String fullName, String specialty, Integer maxCapacity, String email, String workshopId) {
+        this.id = id;
+        this.fullName = fullName;
+        this.specialty = specialty;
+        this.maxCapacity = maxCapacity;
+        this.email = email;
+        this.workshopId = workshopId;
+    }
+}
+
+===== src/main/java/com/autoserviceos/api/staffcoordination/infrastructure/persistence/jpa/mappers/MechanicPersistenceMapper.java =====
+package com.autoserviceos.api.staffcoordination.infrastructure.persistence.jpa.mappers;
+
+import com.autoserviceos.api.staffcoordination.domain.model.aggregates.Mechanic;
+import com.autoserviceos.api.staffcoordination.infrastructure.persistence.jpa.entities.MechanicJpaEntity;
+
+public final class MechanicPersistenceMapper {
+    private MechanicPersistenceMapper() {}
+
+    public static MechanicJpaEntity toJpaEntity(Mechanic aggregate) {
+        return new MechanicJpaEntity(aggregate.getId(), aggregate.getFullName(), aggregate.getSpecialty(),
+                aggregate.getMaxCapacity(), aggregate.getEmail(), aggregate.getWorkshopId());
+    }
+
+    public static Mechanic toDomain(MechanicJpaEntity entity) {
+        return Mechanic.rehydrate(entity.getId(), entity.getFullName(), entity.getSpecialty(),
+                entity.getMaxCapacity(), entity.getEmail(), entity.getWorkshopId());
+    }
+}
+
+===== src/main/java/com/autoserviceos/api/staffcoordination/infrastructure/persistence/jpa/repositories/SpringDataMechanicRepository.java =====
+package com.autoserviceos.api.staffcoordination.infrastructure.persistence.jpa.repositories;
+import com.autoserviceos.api.staffcoordination.infrastructure.persistence.jpa.entities.MechanicJpaEntity;
+import org.springframework.data.jpa.repository.JpaRepository;
+import java.util.List;
+import java.util.Optional;
+
+public interface SpringDataMechanicRepository extends JpaRepository<MechanicJpaEntity, Long> {
+    Optional<MechanicJpaEntity> findByEmail(String email);
+    List<MechanicJpaEntity> findAllByWorkshopId(String workshopId);
+}
+
+===== src/main/java/com/autoserviceos/api/staffcoordination/interfaces/rest/MechanicsController.java =====
+package com.autoserviceos.api.staffcoordination.interfaces.rest;
+
+import com.autoserviceos.api.staffcoordination.application.commands.DeleteMechanicCommand;
+import com.autoserviceos.api.staffcoordination.application.commandservices.MechanicCommandService;
+import com.autoserviceos.api.staffcoordination.application.queries.GetAllMechanicsByWorkshopIdQuery;
+import com.autoserviceos.api.staffcoordination.application.queries.GetMechanicByIdQuery;
+import com.autoserviceos.api.staffcoordination.application.queryservices.MechanicQueryService;
+import com.autoserviceos.api.staffcoordination.interfaces.rest.resources.CreateMechanicResource;
+import com.autoserviceos.api.staffcoordination.interfaces.rest.resources.UpdateMechanicResource;
+import com.autoserviceos.api.staffcoordination.interfaces.rest.transform.MechanicResourceAssembler;
+import io.jsonwebtoken.Claims;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.Map;
+
+/**
+ * Exposes RESTful endpoints for managing technical staff mechanics profiles within a workshop.
+ */
+@RestController
+@RequestMapping("/api/v1/mechanics")
+@Tag(name = "Mechanics", description = "Endpoints for managing workshop technical staff and capabilities")
+public class MechanicsController {
+
+    private final MechanicCommandService mechanicCommandService;
+    private final MechanicQueryService mechanicQueryService;
+
+    public MechanicsController(MechanicCommandService mechanicCommandService, MechanicQueryService mechanicQueryService) {
+        this.mechanicCommandService = mechanicCommandService;
+        this.mechanicQueryService = mechanicQueryService;
+    }
+
+    /** Extracts the WorkshopId from the current authenticated user's JWT token. */
+    private String getAuthenticatedWorkshopId() {
+        var authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication != null && authentication.getCredentials() instanceof Claims claims) {
+            return claims.get("workshopId", String.class);
+        }
+        return null;
+    }
+
+    @PostMapping
+    public ResponseEntity<?> createMechanic(@Valid @RequestBody CreateMechanicResource resource) {
+        String workshopId = getAuthenticatedWorkshopId();
+        if (workshopId == null || workshopId.isEmpty()) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+
+        try {
+            var command = MechanicResourceAssembler.toCommandFromResource(resource, workshopId);
+            var mechanic = mechanicCommandService.handle(command);
+            return ResponseEntity.status(HttpStatus.CREATED).body(MechanicResourceAssembler.toResourceFromEntity(mechanic));
+        } catch (IllegalArgumentException e) {
+            // Catches the exception from IAM if the email is already registered
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+        }
+    }
+
+    @GetMapping
+    public ResponseEntity<?> getAllMechanics() {
+        String workshopId = getAuthenticatedWorkshopId();
+        if (workshopId == null || workshopId.isEmpty()) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+
+        var mechanics = mechanicQueryService.handle(new GetAllMechanicsByWorkshopIdQuery(workshopId));
+        var resources = mechanics.stream().map(MechanicResourceAssembler::toResourceFromEntity).toList();
+        return ResponseEntity.ok(resources);
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<?> getMechanicById(@PathVariable Long id) {
+        var mechanic = mechanicQueryService.handle(new GetMechanicByIdQuery(id));
+        if (mechanic.isEmpty()) return ResponseEntity.notFound().build();
+        return ResponseEntity.ok(MechanicResourceAssembler.toResourceFromEntity(mechanic.get()));
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<?> updateMechanic(@PathVariable Long id, @Valid @RequestBody UpdateMechanicResource resource) {
+        var command = MechanicResourceAssembler.toCommandFromResource(id, resource);
+        var mechanic = mechanicCommandService.handle(command);
+        if (mechanic.isEmpty()) return ResponseEntity.notFound().build();
+        return ResponseEntity.ok(MechanicResourceAssembler.toResourceFromEntity(mechanic.get()));
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<?> deleteMechanic(@PathVariable Long id) {
+        mechanicCommandService.handle(new DeleteMechanicCommand(id));
+        return ResponseEntity.noContent().build();
+    }
+}
+
+===== src/main/java/com/autoserviceos/api/staffcoordination/interfaces/rest/resources/CreateMechanicResource.java =====
+package com.autoserviceos.api.staffcoordination.interfaces.rest.resources;
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+
+public record CreateMechanicResource(
+        @NotBlank String fullName, @NotBlank String specialty,
+        @NotNull @Min(1) Integer maxCapacity, @NotBlank @Email String email, @NotBlank String password
+) {}
+
+===== src/main/java/com/autoserviceos/api/staffcoordination/interfaces/rest/resources/MechanicResource.java =====
+package com.autoserviceos.api.staffcoordination.interfaces.rest.resources;
+
+public record MechanicResource(
+        Long id, String fullName, String specialty,
+        Integer maxCapacity, String email, String workshopId
+) {}
+
+===== src/main/java/com/autoserviceos/api/staffcoordination/interfaces/rest/resources/UpdateMechanicResource.java =====
+package com.autoserviceos.api.staffcoordination.interfaces.rest.resources;
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+
+public record UpdateMechanicResource(
+        @NotBlank String fullName, @NotBlank String specialty,
+        @NotNull @Min(1) Integer maxCapacity, @NotBlank @Email String email
+) {}
+
+===== src/main/java/com/autoserviceos/api/staffcoordination/interfaces/rest/transform/MechanicResourceAssembler.java =====
+package com.autoserviceos.api.staffcoordination.interfaces.rest.transform;
+
+import com.autoserviceos.api.staffcoordination.application.commands.CreateMechanicCommand;
+import com.autoserviceos.api.staffcoordination.application.commands.UpdateMechanicCommand;
+import com.autoserviceos.api.staffcoordination.domain.model.aggregates.Mechanic;
+import com.autoserviceos.api.staffcoordination.interfaces.rest.resources.CreateMechanicResource;
+import com.autoserviceos.api.staffcoordination.interfaces.rest.resources.MechanicResource;
+import com.autoserviceos.api.staffcoordination.interfaces.rest.resources.UpdateMechanicResource;
+
+public class MechanicResourceAssembler {
+    public static MechanicResource toResourceFromEntity(Mechanic entity) {
+        return new MechanicResource(entity.getId(), entity.getFullName(), entity.getSpecialty(),
+                entity.getMaxCapacity(), entity.getEmail(), entity.getWorkshopId());
+    }
+
+    public static CreateMechanicCommand toCommandFromResource(CreateMechanicResource resource, String workshopId) {
+        return new CreateMechanicCommand(resource.fullName(), resource.specialty(), resource.maxCapacity(),
+                resource.email(), resource.password(), workshopId);
+    }
+
+    public static UpdateMechanicCommand toCommandFromResource(Long id, UpdateMechanicResource resource) {
+        return new UpdateMechanicCommand(id, resource.fullName(), resource.specialty(), resource.maxCapacity(), resource.email());
+    }
+}
+
+===== src/main/java/com/autoserviceos/api/tenantmanagement/application/commands/CreateWorkshopCommand.java =====
+package com.autoserviceos.api.tenantmanagement.application.commands;
+
+/**
+ * Command containing the required details to initialize a new workshop tenant.
+ */
+public record CreateWorkshopCommand(String workshopName) {
+}
+
+===== src/main/java/com/autoserviceos/api/tenantmanagement/application/commandservices/WorkshopCommandService.java =====
+package com.autoserviceos.api.tenantmanagement.application.commandservices;
+
+import com.autoserviceos.api.tenantmanagement.application.commands.CreateWorkshopCommand;
+import com.autoserviceos.api.tenantmanagement.domain.model.aggregates.Workshop;
+import java.util.Optional;
+
+/**
+ * Application service port defining workshop write operations.
+ */
+public interface WorkshopCommandService {
+    Optional<Workshop> handle(CreateWorkshopCommand command);
+}
+
+===== src/main/java/com/autoserviceos/api/tenantmanagement/application/internal/commandservices/WorkshopCommandServiceImpl.java =====
+package com.autoserviceos.api.tenantmanagement.application.internal.commandservices;
+
+import com.autoserviceos.api.tenantmanagement.application.commands.CreateWorkshopCommand;
+import com.autoserviceos.api.tenantmanagement.application.commandservices.WorkshopCommandService;
+import com.autoserviceos.api.tenantmanagement.domain.model.aggregates.Workshop;
+import com.autoserviceos.api.tenantmanagement.domain.model.repositories.WorkshopRepository;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.Optional;
+
+/**
+ * Internal application service coordinating the physical creation routine steps
+ * of a multi-tenant workshop architecture model.
+ */
+@Service
+public class WorkshopCommandServiceImpl implements WorkshopCommandService {
+
+    private final WorkshopRepository workshopRepository;
+
+    public WorkshopCommandServiceImpl(WorkshopRepository workshopRepository) {
+        this.workshopRepository = workshopRepository;
+    }
+
+    @Override
+    @Transactional
+    public Optional<Workshop> handle(CreateWorkshopCommand command) {
+        var workshop = Workshop.create(command.workshopName());
+        var savedWorkshop = workshopRepository.save(workshop);
+        return Optional.of(savedWorkshop);
+    }
+}
+
+===== src/main/java/com/autoserviceos/api/tenantmanagement/domain/model/aggregates/Workshop.java =====
+package com.autoserviceos.api.tenantmanagement.domain.model.aggregates;
+
+import java.util.UUID;
+
+/**
+ * Aggregate root representing a business Workshop tenant within the system.
+ * Manages the corporate identity and generates unique tenant identifiers.
+ */
+public class Workshop {
+
+    private final Long id;
+    private String name;
+    private final String tenantId;
+
+    private Workshop(Long id, String name, String tenantId) {
+        this.id = id;
+        this.name = name;
+        this.tenantId = tenantId;
+    }
+
+    /**
+     * Factory method to instantiate a new Workshop tenant.
+     * Automatically generates a unique tenant identifier in the format "WS-XXXX".
+     *
+     * @param name The commercial or corporate name of the workshop.
+     * @return A new instance of Workshop.
+     */
+    public static Workshop create(String name) {
+        String generatedTenantId = "WS-" + UUID.randomUUID().toString().substring(0, 4).toUpperCase();
+        return new Workshop(null, name, generatedTenantId);
+    }
+
+    /**
+     * Factory method to reconstruct an existing Workshop aggregate from data stores.
+     */
+    public static Workshop rehydrate(Long id, String name, String tenantId) {
+        return new Workshop(id, name, tenantId);
+    }
+
+    // Getters
+    public Long getId() { return id; }
+    public String getName() { return name; }
+    public String getTenantId() { return tenantId; }
+}
+
+===== src/main/java/com/autoserviceos/api/tenantmanagement/domain/model/repositories/WorkshopRepository.java =====
+package com.autoserviceos.api.tenantmanagement.domain.model.repositories;
+
+import com.autoserviceos.api.tenantmanagement.domain.model.aggregates.Workshop;
+import java.util.Optional;
+
+/**
+ * Domain repository port defining the persistence contract for Workshop aggregates.
+ */
+public interface WorkshopRepository {
+    Workshop save(Workshop workshop);
+    Optional<Workshop> findById(Long id);
+    Optional<Workshop> findByTenantId(String tenantId);
+}
+
+===== src/main/java/com/autoserviceos/api/tenantmanagement/infrastructure/persistence/jpa/WorkshopPersistenceAdapter.java =====
+package com.autoserviceos.api.tenantmanagement.infrastructure.persistence.jpa;
+
+import com.autoserviceos.api.tenantmanagement.domain.model.aggregates.Workshop;
+import com.autoserviceos.api.tenantmanagement.domain.model.repositories.WorkshopRepository;
+import com.autoserviceos.api.tenantmanagement.infrastructure.persistence.jpa.mappers.WorkshopPersistenceMapper;
+import com.autoserviceos.api.tenantmanagement.infrastructure.persistence.jpa.repositories.SpringDataWorkshopRepository;
+import org.springframework.stereotype.Component;
+
+import java.util.Optional;
+
+/**
+ * Persistence adapter providing implementation infrastructure mapping onto Domain Port specifications.
+ */
+@Component
+public class WorkshopPersistenceAdapter implements WorkshopRepository {
+
+    private final SpringDataWorkshopRepository repository;
+
+    public WorkshopPersistenceAdapter(SpringDataWorkshopRepository repository) {
+        this.repository = repository;
+    }
+
+    @Override
+    public Workshop save(Workshop workshop) {
+        var entity = WorkshopPersistenceMapper.toJpaEntity(workshop);
+        var savedEntity = repository.save(entity);
+        return WorkshopPersistenceMapper.toDomain(savedEntity);
+    }
+
+    @Override
+    public Optional<Workshop> findById(Long id) {
+        return repository.findById(id).map(WorkshopPersistenceMapper::toDomain);
+    }
+
+    @Override
+    public Optional<Workshop> findByTenantId(String tenantId) {
+        return repository.findByTenantId(tenantId).map(WorkshopPersistenceMapper::toDomain);
+    }
+}
+
+===== src/main/java/com/autoserviceos/api/tenantmanagement/infrastructure/persistence/jpa/entities/WorkshopJpaEntity.java =====
+package com.autoserviceos.api.tenantmanagement.infrastructure.persistence.jpa.entities;
+
+import com.autoserviceos.api.shared.domain.model.entities.AuditableModel;
+import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+
+/**
+ * JPA entity representing the persistence structure for Workshops in the database.
+ */
+@Getter
+@Entity
+@NoArgsConstructor
+@Table(name = "workshops")
+public class WorkshopJpaEntity extends AuditableModel {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(nullable = false, length = 150)
+    private String name;
+
+    @Column(nullable = false, unique = true, length = 20)
+    private String tenantId;
+
+    public WorkshopJpaEntity(Long id, String name, String tenantId) {
+        this.id = id;
+        this.name = name;
+        this.tenantId = tenantId;
+    }
+}
+
+===== src/main/java/com/autoserviceos/api/tenantmanagement/infrastructure/persistence/jpa/mappers/WorkshopPersistenceMapper.java =====
+package com.autoserviceos.api.tenantmanagement.infrastructure.persistence.jpa.mappers;
+
+import com.autoserviceos.api.tenantmanagement.domain.model.aggregates.Workshop;
+import com.autoserviceos.api.tenantmanagement.infrastructure.persistence.jpa.entities.WorkshopJpaEntity;
+
+/**
+ * Utility mapper converting instances between Domain Aggregates and JPA Entities.
+ */
+public final class WorkshopPersistenceMapper {
+
+    private WorkshopPersistenceMapper() {}
+
+    public static WorkshopJpaEntity toJpaEntity(Workshop aggregate) {
+        return new WorkshopJpaEntity(
+                aggregate.getId(),
+                aggregate.getName(),
+                aggregate.getTenantId()
+        );
+    }
+
+    public static Workshop toDomain(WorkshopJpaEntity entity) {
+        return Workshop.rehydrate(
+                entity.getId(),
+                entity.getName(),
+                entity.getTenantId()
+        );
+    }
+}
+
+===== src/main/java/com/autoserviceos/api/tenantmanagement/infrastructure/persistence/jpa/repositories/SpringDataWorkshopRepository.java =====
+package com.autoserviceos.api.tenantmanagement.infrastructure.persistence.jpa.repositories;
+
+import com.autoserviceos.api.tenantmanagement.infrastructure.persistence.jpa.entities.WorkshopJpaEntity;
+import org.springframework.data.jpa.repository.JpaRepository;
+import java.util.Optional;
+
+/**
+ * Spring Data interface abstraction providing database access routines for Workshop entities.
+ */
+public interface SpringDataWorkshopRepository extends JpaRepository<WorkshopJpaEntity, Long> {
+    Optional<WorkshopJpaEntity> findByTenantId(String tenantId);
+}
+
+===== src/main/java/com/autoserviceos/api/workshopoperations/application/commands/CreateTaskCommand.java =====
+package com.autoserviceos.api.workshopoperations.application.commands;
+
+public record CreateTaskCommand(Long workOrderId, Long mechanicId, String description, String priority, Integer estimatedTime, java.math.BigDecimal laborPrice) {}
+
+
+===== src/main/java/com/autoserviceos/api/workshopoperations/application/commands/CreateWorkOrderCommand.java =====
+package com.autoserviceos.api.workshopoperations.application.commands;
+
+public record CreateWorkOrderCommand(String workshopId, Long vehicleId, Long customerId, Long mechanicId, String description, String estimatedDate) {}
+
+
+===== src/main/java/com/autoserviceos/api/workshopoperations/application/commands/DeleteTaskCommand.java =====
+package com.autoserviceos.api.workshopoperations.application.commands;
+
+public record DeleteTaskCommand(Long id) {}
+
+
+===== src/main/java/com/autoserviceos/api/workshopoperations/application/commands/DeleteWorkOrderCommand.java =====
+package com.autoserviceos.api.workshopoperations.application.commands;
+
+public record DeleteWorkOrderCommand(Long id) {}
+
+
+===== src/main/java/com/autoserviceos/api/workshopoperations/application/commands/PatchTaskCommand.java =====
+package com.autoserviceos.api.workshopoperations.application.commands;
+public record PatchTaskCommand(Long id, String status, String technicalDiagnosis, String customerExplanation, String internalObservation, String evidenceRegistered, String adminReviewStatus) {}
+
+===== src/main/java/com/autoserviceos/api/workshopoperations/application/commands/UpdateTaskCommand.java =====
+package com.autoserviceos.api.workshopoperations.application.commands;
+
+public record UpdateTaskCommand(Long id, String description, String status, String priority, Integer estimatedTime, java.math.BigDecimal laborPrice, Long mechanicId) {}
+
+
+===== src/main/java/com/autoserviceos/api/workshopoperations/application/commands/UpdateWorkOrderCommand.java =====
+package com.autoserviceos.api.workshopoperations.application.commands;
+
+public record UpdateWorkOrderCommand(Long id, String description, String estimatedDate, java.math.BigDecimal price, String status, Boolean tasksCompleted, Boolean sparePartsChecked, Boolean diagnosisValidated, Boolean cleaningDone, Boolean finalTestDone) {}
+
+
+===== src/main/java/com/autoserviceos/api/workshopoperations/application/commandservices/TaskCommandService.java =====
+package com.autoserviceos.api.workshopoperations.application.commandservices;
+
+import com.autoserviceos.api.workshopoperations.application.commands.*;
+import com.autoserviceos.api.workshopoperations.domain.model.aggregates.Task;
+import java.util.Optional;
+
+public interface TaskCommandService {
+    Task handle(CreateTaskCommand command);
+    Optional<Task> handle(UpdateTaskCommand command);
+    Optional<Task> handle(PatchTaskCommand command);
+    void handle(DeleteTaskCommand command);
+}
+
+===== src/main/java/com/autoserviceos/api/workshopoperations/application/commandservices/WorkOrderCommandService.java =====
+package com.autoserviceos.api.workshopoperations.application.commandservices;
+
+import com.autoserviceos.api.workshopoperations.application.commands.*;
+import com.autoserviceos.api.workshopoperations.domain.model.aggregates.WorkOrder;
+import java.util.Optional;
+
+public interface WorkOrderCommandService {
+    WorkOrder handle(CreateWorkOrderCommand command);
+    Optional<WorkOrder> handle(UpdateWorkOrderCommand command);
+    void handle(DeleteWorkOrderCommand command);
+}
+
+===== src/main/java/com/autoserviceos/api/workshopoperations/application/internal/commandservices/TaskCommandServiceImpl.java =====
+package com.autoserviceos.api.workshopoperations.application.internal.commandservices;
+
+import com.autoserviceos.api.workshopoperations.application.commands.*;
+import com.autoserviceos.api.workshopoperations.application.commandservices.TaskCommandService;
+import com.autoserviceos.api.workshopoperations.domain.model.aggregates.Task;
+import com.autoserviceos.api.workshopoperations.domain.model.repositories.TaskRepository;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.Optional;
+
+/**
+ * Implementation coordinating write operations and lifecycle transitions for operational tasks.
+ */
+@Service
+public class TaskCommandServiceImpl implements TaskCommandService {
+    private final TaskRepository taskRepository;
+
+    public TaskCommandServiceImpl(TaskRepository taskRepository) {
+        this.taskRepository = taskRepository;
+    }
+
+    @Transactional
+    public Task handle(CreateTaskCommand command) {
+        var task = Task.create(command.workOrderId(), command.mechanicId(), command.description(),
+                command.priority(), command.estimatedTime(), command.laborPrice());
+        return taskRepository.save(task);
+    }
+
+    @Transactional
+    public Optional<Task> handle(UpdateTaskCommand command) {
+        var result = taskRepository.findById(command.id());
+        if (result.isEmpty()) return Optional.empty();
+
+        var task = result.get();
+        task.update(command.description(), command.status(), command.priority(),
+                command.estimatedTime(), command.laborPrice(), command.mechanicId());
+        return Optional.of(taskRepository.save(task));
+    }
+
+    @Transactional
+    public Optional<Task> handle(PatchTaskCommand command) {
+        var result = taskRepository.findById(command.id());
+        if (result.isEmpty()) return Optional.empty();
+
+        var task = result.get();
+        task.patchTechnicalData(command.status(), command.technicalDiagnosis(), command.customerExplanation(),
+                command.internalObservation(), command.evidenceRegistered(), command.adminReviewStatus());
+        return Optional.of(taskRepository.save(task));
+    }
+
+    @Transactional
+    public void handle(DeleteTaskCommand command) {
+        taskRepository.findById(command.id()).ifPresent(taskRepository::delete);
+    }
+}
+
+===== src/main/java/com/autoserviceos/api/workshopoperations/application/internal/commandservices/WorkOrderCommandServiceImpl.java =====
+package com.autoserviceos.api.workshopoperations.application.internal.commandservices;
+
+import com.autoserviceos.api.workshopoperations.application.commands.*;
+import com.autoserviceos.api.workshopoperations.application.commandservices.WorkOrderCommandService;
+import com.autoserviceos.api.workshopoperations.domain.model.aggregates.WorkOrder;
+import com.autoserviceos.api.workshopoperations.domain.model.repositories.WorkOrderRepository;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import java.math.BigDecimal;
+import java.util.Optional;
+
+@Service
+public class WorkOrderCommandServiceImpl implements WorkOrderCommandService {
+    private final WorkOrderRepository repository;
+    public WorkOrderCommandServiceImpl(WorkOrderRepository repository) { this.repository = repository; }
+
+    @Transactional
+    public WorkOrder handle(CreateWorkOrderCommand command) {
+        var workOrder = WorkOrder.create(command.workshopId(), command.vehicleId(), command.customerId(), command.mechanicId(), command.description(), command.estimatedDate(), BigDecimal.ZERO);
+        return repository.save(workOrder);
+    }
+
+    @Transactional
+    public Optional<WorkOrder> handle(UpdateWorkOrderCommand command) {
+        var result = repository.findById(command.id());
+        if (result.isEmpty()) return Optional.empty();
+        var workOrder = result.get();
+        workOrder.update(command.description(), command.estimatedDate(), command.price());
+        workOrder.updateChecklist(command.tasksCompleted(), command.sparePartsChecked(), command.diagnosisValidated(), command.cleaningDone(), command.finalTestDone());
+        workOrder.updateStatus(command.status());
+        return Optional.of(repository.save(workOrder));
+    }
+
+    @Transactional
+    public void handle(DeleteWorkOrderCommand command) {
+        repository.findById(command.id()).ifPresent(repository::delete);
+    }
+}
+
+===== src/main/java/com/autoserviceos/api/workshopoperations/application/internal/queryservices/TaskQueryServiceImpl.java =====
+package com.autoserviceos.api.workshopoperations.application.internal.queryservices;
+
+import com.autoserviceos.api.workshopoperations.application.queries.*;
+import com.autoserviceos.api.workshopoperations.application.queryservices.TaskQueryService;
+import com.autoserviceos.api.workshopoperations.domain.model.aggregates.Task;
+import com.autoserviceos.api.workshopoperations.domain.model.repositories.TaskRepository;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+import java.util.Optional;
+
+/**
+ * Implementation executing read-only database queries for individual maintenance tasks.
+ */
+@Service
+@Transactional(readOnly = true)
+public class TaskQueryServiceImpl implements TaskQueryService {
+    private final TaskRepository taskRepository;
+
+    public TaskQueryServiceImpl(TaskRepository taskRepository) {
+        this.taskRepository = taskRepository;
+    }
+
+    public Optional<Task> handle(GetTaskByIdQuery query) {
+        return taskRepository.findById(query.id());
+    }
+
+    public List<Task> handle(GetAllTasksQuery query) {
+        return taskRepository.findAll();
+    }
+
+    public List<Task> handle(GetTasksByWorkOrderIdQuery query) {
+        return taskRepository.findByWorkOrderId(query.workOrderId());
+    }
+
+    public List<Task> handle(GetTasksByMechanicIdQuery query) {
+        return taskRepository.findByMechanicId(query.mechanicId());
+    }
+}
+
+===== src/main/java/com/autoserviceos/api/workshopoperations/application/internal/queryservices/WorkOrderQueryServiceImpl.java =====
+package com.autoserviceos.api.workshopoperations.application.internal.queryservices;
+
+import com.autoserviceos.api.workshopoperations.application.queries.*;
+import com.autoserviceos.api.workshopoperations.application.queryservices.WorkOrderQueryService;
+import com.autoserviceos.api.workshopoperations.domain.model.aggregates.WorkOrder;
+import com.autoserviceos.api.workshopoperations.domain.model.repositories.WorkOrderRepository;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+import java.util.Optional;
+
+/**
+ * Implementation executing read-only database queries for work order tracking folders.
+ */
+@Service
+@Transactional(readOnly = true)
+public class WorkOrderQueryServiceImpl implements WorkOrderQueryService {
+    private final WorkOrderRepository workOrderRepository;
+
+    public WorkOrderQueryServiceImpl(WorkOrderRepository workOrderRepository) {
+        this.workOrderRepository = workOrderRepository;
+    }
+
+    public Optional<WorkOrder> handle(GetWorkOrderByIdQuery query) {
+        return workOrderRepository.findById(query.id());
+    }
+
+    public List<WorkOrder> handle(GetAllWorkOrdersQuery query) {
+        return workOrderRepository.findAll();
+    }
+
+    public List<WorkOrder> handle(GetWorkOrdersByWorkshopIdQuery query) {
+        return workOrderRepository.findByWorkshopId(query.workshopId());
+    }
+}
+
+===== src/main/java/com/autoserviceos/api/workshopoperations/application/queries/GetAllTasksQuery.java =====
+package com.autoserviceos.api.workshopoperations.application.queries;
+
+public record GetAllTasksQuery() {}
+
+
+===== src/main/java/com/autoserviceos/api/workshopoperations/application/queries/GetAllWorkOrdersQuery.java =====
+package com.autoserviceos.api.workshopoperations.application.queries;
+
+public record GetAllWorkOrdersQuery() {}
+
+
+===== src/main/java/com/autoserviceos/api/workshopoperations/application/queries/GetTaskByIdQuery.java =====
+package com.autoserviceos.api.workshopoperations.application.queries;
+
+public record GetTaskByIdQuery(Long id) {}
+
+
+===== src/main/java/com/autoserviceos/api/workshopoperations/application/queries/GetTasksByMechanicIdQuery.java =====
+package com.autoserviceos.api.workshopoperations.application.queries;
+
+public record GetTasksByMechanicIdQuery(Long mechanicId) {}
+
+===== src/main/java/com/autoserviceos/api/workshopoperations/application/queries/GetTasksByWorkOrderIdQuery.java =====
+package com.autoserviceos.api.workshopoperations.application.queries;
+
+public record GetTasksByWorkOrderIdQuery(Long workOrderId) {}
+
+
+===== src/main/java/com/autoserviceos/api/workshopoperations/application/queries/GetWorkOrderByIdQuery.java =====
+package com.autoserviceos.api.workshopoperations.application.queries;
+
+public record GetWorkOrderByIdQuery(Long id) {}
+
+
+===== src/main/java/com/autoserviceos/api/workshopoperations/application/queries/GetWorkOrdersByWorkshopIdQuery.java =====
+package com.autoserviceos.api.workshopoperations.application.queries;
+
+public record GetWorkOrdersByWorkshopIdQuery(String workshopId) {}
+
+
+===== src/main/java/com/autoserviceos/api/workshopoperations/application/queryservices/TaskQueryService.java =====
+package com.autoserviceos.api.workshopoperations.application.queryservices;
+
+import com.autoserviceos.api.workshopoperations.application.queries.*;
+import com.autoserviceos.api.workshopoperations.domain.model.aggregates.Task;
+import java.util.List;
+import java.util.Optional;
+
+public interface TaskQueryService {
+    Optional<Task> handle(GetTaskByIdQuery query);
+    List<Task> handle(GetAllTasksQuery query);
+    List<Task> handle(GetTasksByWorkOrderIdQuery query);
+    List<Task> handle(GetTasksByMechanicIdQuery query);
+}
+
+===== src/main/java/com/autoserviceos/api/workshopoperations/application/queryservices/WorkOrderQueryService.java =====
+package com.autoserviceos.api.workshopoperations.application.queryservices;
+
+import com.autoserviceos.api.workshopoperations.application.queries.*;
+import com.autoserviceos.api.workshopoperations.domain.model.aggregates.WorkOrder;
+import java.util.List;
+import java.util.Optional;
+
+public interface WorkOrderQueryService {
+    Optional<WorkOrder> handle(GetWorkOrderByIdQuery query);
+    List<WorkOrder> handle(GetAllWorkOrdersQuery query);
+    List<WorkOrder> handle(GetWorkOrdersByWorkshopIdQuery query);
+}
+
+===== src/main/java/com/autoserviceos/api/workshopoperations/domain/model/aggregates/Task.java =====
+package com.autoserviceos.api.workshopoperations.domain.model.aggregates;
+
+import java.math.BigDecimal;
+
+/**
+ * Aggregate root representing a specific diagnostic or repair job within a WorkOrder.
+ */
+public class Task {
+
+    private final Long id;
+    private final Long workOrderId;
+    private Long mechanicId;
+    private String description;
+    private String status;
+    private String priority;
+    private Integer estimatedTime;
+    private BigDecimal laborPrice;
+    private String technicalDiagnosis;
+    private String customerExplanation;
+    private String internalObservation;
+    private String evidenceRegistered;
+    private String adminReviewStatus;
+
+    private Task(Long id, Long workOrderId, Long mechanicId, String description, String status, String priority, Integer estimatedTime, BigDecimal laborPrice,
+                 String technicalDiagnosis, String customerExplanation, String internalObservation, String evidenceRegistered, String adminReviewStatus) {
+        this.id = id;
+        this.workOrderId = workOrderId;
+        this.mechanicId = mechanicId;
+        this.description = description;
+        this.status = status;
+        this.priority = priority;
+        this.estimatedTime = estimatedTime;
+        this.laborPrice = laborPrice;
+        this.technicalDiagnosis = technicalDiagnosis;
+        this.customerExplanation = customerExplanation;
+        this.internalObservation = internalObservation;
+        this.evidenceRegistered = evidenceRegistered;
+        this.adminReviewStatus = adminReviewStatus;
+    }
+
+    public static Task create(Long workOrderId, Long mechanicId, String description, String priority, Integer estimatedTime, BigDecimal laborPrice) {
+        return new Task(null, workOrderId, mechanicId, description, "PENDING", priority, estimatedTime, laborPrice, "", "", "", "", "");
+    }
+
+    public static Task rehydrate(Long id, Long workOrderId, Long mechanicId, String description, String status, String priority, Integer estimatedTime, BigDecimal laborPrice,
+                                 String technicalDiagnosis, String customerExplanation, String internalObservation, String evidenceRegistered, String adminReviewStatus) {
+        return new Task(id, workOrderId, mechanicId, description, status, priority, estimatedTime, laborPrice, technicalDiagnosis, customerExplanation, internalObservation, evidenceRegistered, adminReviewStatus);
+    }
+
+    public void update(String description, String status, String priority, Integer estimatedTime, BigDecimal laborPrice, Long mechanicId) {
+        this.description = description;
+        this.status = status;
+        this.priority = priority;
+        this.estimatedTime = estimatedTime;
+        this.laborPrice = laborPrice;
+        this.mechanicId = mechanicId;
+    }
+
+    public void patchTechnicalData(String status, String diagnosis, String explanation, String observation, String evidence, String reviewStatus) {
+        if (status != null && !status.trim().isEmpty()) this.status = status;
+        this.technicalDiagnosis = diagnosis != null ? diagnosis : this.technicalDiagnosis;
+        this.customerExplanation = explanation != null ? explanation : this.customerExplanation;
+        this.internalObservation = observation != null ? observation : this.internalObservation;
+        this.evidenceRegistered = evidence != null ? evidence : this.evidenceRegistered;
+        this.adminReviewStatus = reviewStatus != null ? reviewStatus : this.adminReviewStatus;
+    }
+
+    // Getters
+    public Long getId() { return id; }
+    public Long getWorkOrderId() { return workOrderId; }
+    public Long getMechanicId() { return mechanicId; }
+    public String getDescription() { return description; }
+    public String getStatus() { return status; }
+    public String getPriority() { return priority; }
+    public Integer getEstimatedTime() { return estimatedTime; }
+    public BigDecimal getLaborPrice() { return laborPrice; }
+    public String getTechnicalDiagnosis() { return technicalDiagnosis; }
+    public String getCustomerExplanation() { return customerExplanation; }
+    public String getInternalObservation() { return internalObservation; }
+    public String getEvidenceRegistered() { return evidenceRegistered; }
+    public String getAdminReviewStatus() { return adminReviewStatus; }
+}
+
+===== src/main/java/com/autoserviceos/api/workshopoperations/domain/model/aggregates/WorkOrder.java =====
+package com.autoserviceos.api.workshopoperations.domain.model.aggregates;
+
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.UUID;
+
+/**
+ * Aggregate root managing vehicle processing folders and checklist execution progress within a tenant scope.
+ */
+public class WorkOrder {
+
+    private final Long id;
+    private final String workshopId;
+    private final String trackingCode;
+    private final Long vehicleId;
+    private final Long customerId;
+    private final Long mechanicId;
+    private String description;
+    private String status;
+    private BigDecimal price;
+    private String estimatedDate;
+    private final String startDate;
+    private Boolean tasksCompleted;
+    private Boolean sparePartsChecked;
+    private Boolean diagnosisValidated;
+    private Boolean cleaningDone;
+    private Boolean finalTestDone;
+
+    private WorkOrder(Long id, String workshopId, String trackingCode, Long vehicleId, Long customerId, Long mechanicId,
+                      String description, String status, BigDecimal price, String estimatedDate, String startDate,
+                      Boolean tasksCompleted, Boolean sparePartsChecked, Boolean diagnosisValidated, Boolean cleaningDone, Boolean finalTestDone) {
+        this.id = id;
+        this.workshopId = workshopId;
+        this.trackingCode = trackingCode;
+        this.vehicleId = vehicleId;
+        this.customerId = customerId;
+        this.mechanicId = mechanicId;
+        this.description = description;
+        this.status = status;
+        this.price = price;
+        this.estimatedDate = estimatedDate;
+        this.startDate = startDate;
+        this.tasksCompleted = tasksCompleted;
+        this.sparePartsChecked = sparePartsChecked;
+        this.diagnosisValidated = diagnosisValidated;
+        this.cleaningDone = cleaningDone;
+        this.finalTestDone = finalTestDone;
+    }
+
+    public static WorkOrder create(String workshopId, Long vehicleId, Long customerId, Long mechanicId, String description, String estimatedDate, BigDecimal price) {
+        String generatedCode = "WO-" + UUID.randomUUID().toString().substring(0, 6).toUpperCase();
+        String currentDate = LocalDate.now().toString();
+        return new WorkOrder(null, workshopId, generatedCode, vehicleId, customerId, mechanicId, description, "PENDING", price, estimatedDate, currentDate, false, false, false, false, false);
+    }
+
+    public static WorkOrder rehydrate(Long id, String workshopId, String trackingCode, Long vehicleId, Long customerId, Long mechanicId,
+                                      String description, String status, BigDecimal price, String estimatedDate, String startDate,
+                                      Boolean tasksCompleted, Boolean sparePartsChecked, Boolean diagnosisValidated, Boolean cleaningDone, Boolean finalTestDone) {
+        return new WorkOrder(id, workshopId, trackingCode, vehicleId, customerId, mechanicId, description, status, price, estimatedDate, startDate, tasksCompleted, sparePartsChecked, diagnosisValidated, cleaningDone, finalTestDone);
+    }
+
+    public void update(String description, String estimatedDate, BigDecimal price) {
+        this.description = description;
+        this.estimatedDate = estimatedDate;
+        this.price = price;
+    }
+
+    public void updateChecklist(Boolean tasksCompleted, Boolean sparePartsChecked, Boolean diagnosisValidated, Boolean cleaningDone, Boolean finalTestDone) {
+        this.tasksCompleted = tasksCompleted;
+        this.sparePartsChecked = sparePartsChecked;
+        this.diagnosisValidated = diagnosisValidated;
+        this.cleaningDone = cleaningDone;
+        this.finalTestDone = finalTestDone;
+    }
+
+    public void updateStatus(String status) {
+        if (status != null && !status.trim().isEmpty()) {
+            this.status = status;
+        }
+    }
+
+    // Getters
+    public Long getId() { return id; }
+    public String getWorkshopId() { return workshopId; }
+    public String getTrackingCode() { return trackingCode; }
+    public Long getVehicleId() { return vehicleId; }
+    public Long getCustomerId() { return customerId; }
+    public Long getMechanicId() { return mechanicId; }
+    public String getDescription() { return description; }
+    public String getStatus() { return status; }
+    public BigDecimal getPrice() { return price; }
+    public String getEstimatedDate() { return estimatedDate; }
+    public String getStartDate() { return startDate; }
+    public Boolean getTasksCompleted() { return tasksCompleted; }
+    public Boolean getSparePartsChecked() { return sparePartsChecked; }
+    public Boolean getDiagnosisValidated() { return diagnosisValidated; }
+    public Boolean getCleaningDone() { return cleaningDone; }
+    public Boolean getFinalTestDone() { return finalTestDone; }
+}
+
+===== src/main/java/com/autoserviceos/api/workshopoperations/domain/model/repositories/TaskRepository.java =====
+package com.autoserviceos.api.workshopoperations.domain.model.repositories;
+import com.autoserviceos.api.workshopoperations.domain.model.aggregates.Task;
+import java.util.List;
+import java.util.Optional;
+
+public interface TaskRepository {
+    Task save(Task task);
+    Optional<Task> findById(Long id);
+    List<Task> findAll();
+    List<Task> findByWorkOrderId(Long workOrderId);
+    List<Task> findByMechanicId(Long mechanicId);
+    void delete(Task task);
+}
+
+===== src/main/java/com/autoserviceos/api/workshopoperations/domain/model/repositories/WorkOrderRepository.java =====
+package com.autoserviceos.api.workshopoperations.domain.model.repositories;
+import com.autoserviceos.api.workshopoperations.domain.model.aggregates.WorkOrder;
+import java.util.List;
+import java.util.Optional;
+
+public interface WorkOrderRepository {
+    WorkOrder save(WorkOrder workOrder);
+    Optional<WorkOrder> findById(Long id);
+    List<WorkOrder> findAll();
+    List<WorkOrder> findByWorkshopId(String workshopId);
+    void delete(WorkOrder workOrder);
+}
+
+===== src/main/java/com/autoserviceos/api/workshopoperations/infrastructure/persistence/jpa/TaskPersistenceAdapter.java =====
+package com.autoserviceos.api.workshopoperations.infrastructure.persistence.jpa;
+
+import com.autoserviceos.api.workshopoperations.domain.model.aggregates.Task;
+import com.autoserviceos.api.workshopoperations.domain.model.repositories.TaskRepository;
+import com.autoserviceos.api.workshopoperations.infrastructure.persistence.jpa.mappers.TaskPersistenceMapper;
+import com.autoserviceos.api.workshopoperations.infrastructure.persistence.jpa.repositories.SpringDataTaskRepository;
+import org.springframework.stereotype.Component;
+
+import java.util.List;
+import java.util.Optional;
+
+@Component
+public class TaskPersistenceAdapter implements TaskRepository {
+    private final SpringDataTaskRepository repository;
+
+    public TaskPersistenceAdapter(SpringDataTaskRepository repository) {
+        this.repository = repository;
+    }
+
+    @Override
+    public Task save(Task task) {
+        var entity = TaskPersistenceMapper.toJpaEntity(task);
+        return TaskPersistenceMapper.toDomain(repository.save(entity));
+    }
+
+    @Override
+    public Optional<Task> findById(Long id) {
+        return repository.findById(id).map(TaskPersistenceMapper::toDomain);
+    }
+
+    @Override
+    public List<Task> findAll() {
+        return repository.findAll().stream().map(TaskPersistenceMapper::toDomain).toList();
+    }
+
+    @Override
+    public List<Task> findByWorkOrderId(Long workOrderId) {
+        return repository.findByWorkOrderId(workOrderId).stream().map(TaskPersistenceMapper::toDomain).toList();
+    }
+
+    @Override
+    public List<Task> findByMechanicId(Long mechanicId) {
+        return repository.findByMechanicId(mechanicId).stream().map(TaskPersistenceMapper::toDomain).toList();
+    }
+
+    @Override
+    public void delete(Task task) {
+        repository.deleteById(task.getId());
+    }
+}
+
+===== src/main/java/com/autoserviceos/api/workshopoperations/infrastructure/persistence/jpa/WorkOrderPersistenceAdapter.java =====
+package com.autoserviceos.api.workshopoperations.infrastructure.persistence.jpa;
+
+import com.autoserviceos.api.workshopoperations.domain.model.aggregates.WorkOrder;
+import com.autoserviceos.api.workshopoperations.domain.model.repositories.WorkOrderRepository;
+import com.autoserviceos.api.workshopoperations.infrastructure.persistence.jpa.mappers.WorkOrderPersistenceMapper;
+import com.autoserviceos.api.workshopoperations.infrastructure.persistence.jpa.repositories.SpringDataWorkOrderRepository;
+import org.springframework.stereotype.Component;
+
+import java.util.List;
+import java.util.Optional;
+
+@Component
+public class WorkOrderPersistenceAdapter implements WorkOrderRepository {
+    private final SpringDataWorkOrderRepository repository;
+
+    public WorkOrderPersistenceAdapter(SpringDataWorkOrderRepository repository) {
+        this.repository = repository;
+    }
+
+    @Override
+    public WorkOrder save(WorkOrder workOrder) {
+        var entity = WorkOrderPersistenceMapper.toJpaEntity(workOrder);
+        return WorkOrderPersistenceMapper.toDomain(repository.save(entity));
+    }
+
+    @Override
+    public Optional<WorkOrder> findById(Long id) {
+        return repository.findById(id).map(WorkOrderPersistenceMapper::toDomain);
+    }
+
+    @Override
+    public List<WorkOrder> findAll() {
+        return repository.findAll().stream().map(WorkOrderPersistenceMapper::toDomain).toList();
+    }
+
+    @Override
+    public List<WorkOrder> findByWorkshopId(String workshopId) {
+        return repository.findByWorkshopId(workshopId).stream().map(WorkOrderPersistenceMapper::toDomain).toList();
+    }
+
+    @Override
+    public void delete(WorkOrder workOrder) {
+        repository.deleteById(workOrder.getId());
+    }
+}
+
+===== src/main/java/com/autoserviceos/api/workshopoperations/infrastructure/persistence/jpa/entities/TaskJpaEntity.java =====
+package com.autoserviceos.api.workshopoperations.infrastructure.persistence.jpa.entities;
+import com.autoserviceos.api.shared.domain.model.entities.AuditableModel;
+import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import java.math.BigDecimal;
+
+@Getter
+@Entity
+@NoArgsConstructor
+@Table(name = "tasks")
+public class TaskJpaEntity extends AuditableModel {
+    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+    @Column(nullable = false) private Long workOrderId;
+    private Long mechanicId;
+    @Column(columnDefinition = "TEXT") private String description;
+    @Column(length = 50) private String status;
+    @Column(length = 50) private String priority;
+    private Integer estimatedTime;
+    @Column(precision = 10, scale = 2) private BigDecimal laborPrice;
+    @Column(columnDefinition = "TEXT") private String technicalDiagnosis;
+    @Column(columnDefinition = "TEXT") private String customerExplanation;
+    @Column(columnDefinition = "TEXT") private String internalObservation;
+    @Column(length = 500) private String evidenceRegistered;
+    @Column(length = 100) private String adminReviewStatus;
+
+    public TaskJpaEntity(Long id, Long workOrderId, Long mechanicId, String description, String status, String priority, Integer estimatedTime, BigDecimal laborPrice, String technicalDiagnosis, String customerExplanation, String internalObservation, String evidenceRegistered, String adminReviewStatus) {
+        this.id = id;
+        this.workOrderId = workOrderId;
+        this.mechanicId = mechanicId;
+        this.description = description;
+        this.status = status;
+        this.priority = priority;
+        this.estimatedTime = estimatedTime;
+        this.laborPrice = laborPrice;
+        this.technicalDiagnosis = technicalDiagnosis;
+        this.customerExplanation = customerExplanation;
+        this.internalObservation = internalObservation;
+        this.evidenceRegistered = evidenceRegistered;
+        this.adminReviewStatus = adminReviewStatus;
+    }
+}
+
+===== src/main/java/com/autoserviceos/api/workshopoperations/infrastructure/persistence/jpa/entities/WorkOrderJpaEntity.java =====
+package com.autoserviceos.api.workshopoperations.infrastructure.persistence.jpa.entities;
+import com.autoserviceos.api.shared.domain.model.entities.AuditableModel;
+import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import java.math.BigDecimal;
+
+@Getter
+@Entity
+@NoArgsConstructor
+@Table(name = "work_orders")
+public class WorkOrderJpaEntity extends AuditableModel {
+    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+    @Column(nullable = false, length = 50) private String workshopId;
+    @Column(nullable = false, unique = true, length = 20) private String trackingCode;
+    @Column(nullable = false) private Long vehicleId;
+    @Column(nullable = false) private Long customerId;
+    @Column(nullable = false) private Long mechanicId;
+    @Column(columnDefinition = "TEXT") private String description;
+    @Column(length = 50) private String status;
+    @Column(precision = 10, scale = 2) private BigDecimal price;
+    @Column(length = 30) private String estimatedDate;
+    @Column(length = 30) private String startDate;
+    private Boolean tasksCompleted;
+    private Boolean sparePartsChecked;
+    private Boolean diagnosisValidated;
+    private Boolean cleaningDone;
+    private Boolean finalTestDone;
+
+    public WorkOrderJpaEntity(Long id, String workshopId, String trackingCode, Long vehicleId, Long customerId, Long mechanicId, String description, String status, BigDecimal price, String estimatedDate, String startDate, Boolean tasksCompleted, Boolean sparePartsChecked, Boolean diagnosisValidated, Boolean cleaningDone, Boolean finalTestDone) {
+        this.id = id;
+        this.workshopId = workshopId;
+        this.trackingCode = trackingCode;
+        this.vehicleId = vehicleId;
+        this.customerId = customerId;
+        this.mechanicId = mechanicId;
+        this.description = description;
+        this.status = status;
+        this.price = price;
+        this.estimatedDate = estimatedDate;
+        this.startDate = startDate;
+        this.tasksCompleted = tasksCompleted;
+        this.sparePartsChecked = sparePartsChecked;
+        this.diagnosisValidated = diagnosisValidated;
+        this.cleaningDone = cleaningDone;
+        this.finalTestDone = finalTestDone;
+    }
+}
+
+===== src/main/java/com/autoserviceos/api/workshopoperations/infrastructure/persistence/jpa/mappers/TaskPersistenceMapper.java =====
+package com.autoserviceos.api.workshopoperations.infrastructure.persistence.jpa.mappers;
+
+import com.autoserviceos.api.workshopoperations.domain.model.aggregates.Task;
+import com.autoserviceos.api.workshopoperations.infrastructure.persistence.jpa.entities.TaskJpaEntity;
+
+public final class TaskPersistenceMapper {
+    private TaskPersistenceMapper() {}
+
+    public static TaskJpaEntity toJpaEntity(Task aggregate) {
+        return new TaskJpaEntity(
+                aggregate.getId(), aggregate.getWorkOrderId(), aggregate.getMechanicId(),
+                aggregate.getDescription(), aggregate.getStatus(), aggregate.getPriority(),
+                aggregate.getEstimatedTime(), aggregate.getLaborPrice(), aggregate.getTechnicalDiagnosis(),
+                aggregate.getCustomerExplanation(), aggregate.getInternalObservation(),
+                aggregate.getEvidenceRegistered(), aggregate.getAdminReviewStatus()
+        );
+    }
+
+    public static Task toDomain(TaskJpaEntity entity) {
+        return Task.rehydrate(
+                entity.getId(), entity.getWorkOrderId(), entity.getMechanicId(),
+                entity.getDescription(), entity.getStatus(), entity.getPriority(),
+                entity.getEstimatedTime(), entity.getLaborPrice(), entity.getTechnicalDiagnosis(),
+                entity.getCustomerExplanation(), entity.getInternalObservation(),
+                entity.getEvidenceRegistered(), entity.getAdminReviewStatus()
+        );
+    }
+}
+
+===== src/main/java/com/autoserviceos/api/workshopoperations/infrastructure/persistence/jpa/mappers/WorkOrderPersistenceMapper.java =====
+package com.autoserviceos.api.workshopoperations.infrastructure.persistence.jpa.mappers;
+
+import com.autoserviceos.api.workshopoperations.domain.model.aggregates.WorkOrder;
+import com.autoserviceos.api.workshopoperations.infrastructure.persistence.jpa.entities.WorkOrderJpaEntity;
+
+public final class WorkOrderPersistenceMapper {
+    private WorkOrderPersistenceMapper() {}
+
+    public static WorkOrderJpaEntity toJpaEntity(WorkOrder aggregate) {
+        return new WorkOrderJpaEntity(
+                aggregate.getId(), aggregate.getWorkshopId(), aggregate.getTrackingCode(),
+                aggregate.getVehicleId(), aggregate.getCustomerId(), aggregate.getMechanicId(),
+                aggregate.getDescription(), aggregate.getStatus(), aggregate.getPrice(),
+                aggregate.getEstimatedDate(), aggregate.getStartDate(), aggregate.getTasksCompleted(),
+                aggregate.getSparePartsChecked(), aggregate.getDiagnosisValidated(),
+                aggregate.getCleaningDone(), aggregate.getFinalTestDone()
+        );
+    }
+
+    public static WorkOrder toDomain(WorkOrderJpaEntity entity) {
+        return WorkOrder.rehydrate(
+                entity.getId(), entity.getWorkshopId(), entity.getTrackingCode(),
+                entity.getVehicleId(), entity.getCustomerId(), entity.getMechanicId(),
+                entity.getDescription(), entity.getStatus(), entity.getPrice(),
+                entity.getEstimatedDate(), entity.getStartDate(), entity.getTasksCompleted(),
+                entity.getSparePartsChecked(), entity.getDiagnosisValidated(),
+                entity.getCleaningDone(), entity.getFinalTestDone()
+        );
+    }
+}
+
+===== src/main/java/com/autoserviceos/api/workshopoperations/infrastructure/persistence/jpa/repositories/SpringDataTaskRepository.java =====
+package com.autoserviceos.api.workshopoperations.infrastructure.persistence.jpa.repositories;
+
+import com.autoserviceos.api.workshopoperations.infrastructure.persistence.jpa.entities.TaskJpaEntity;
+import org.springframework.data.jpa.repository.JpaRepository;
+import java.util.List;
+
+public interface SpringDataTaskRepository extends JpaRepository<TaskJpaEntity, Long> {
+    List<TaskJpaEntity> findByWorkOrderId(Long workOrderId);
+    List<TaskJpaEntity> findByMechanicId(Long mechanicId);
+}
+
+===== src/main/java/com/autoserviceos/api/workshopoperations/infrastructure/persistence/jpa/repositories/SpringDataWorkOrderRepository.java =====
+package com.autoserviceos.api.workshopoperations.infrastructure.persistence.jpa.repositories;
+
+import com.autoserviceos.api.workshopoperations.infrastructure.persistence.jpa.entities.WorkOrderJpaEntity;
+import org.springframework.data.jpa.repository.JpaRepository;
+import java.util.List;
+
+public interface SpringDataWorkOrderRepository extends JpaRepository<WorkOrderJpaEntity, Long> {
+    List<WorkOrderJpaEntity> findByWorkshopId(String workshopId);
+}
+
+===== src/main/java/com/autoserviceos/api/workshopoperations/interfaces/rest/TasksController.java =====
+package com.autoserviceos.api.workshopoperations.interfaces.rest;
+
+import com.autoserviceos.api.workshopoperations.application.commands.*;
+import com.autoserviceos.api.workshopoperations.application.commandservices.TaskCommandService;
+import com.autoserviceos.api.workshopoperations.application.queries.*;
+import com.autoserviceos.api.workshopoperations.application.queryservices.TaskQueryService;
+import com.autoserviceos.api.workshopoperations.application.queryservices.WorkOrderQueryService;
+import com.autoserviceos.api.workshopoperations.interfaces.rest.resources.*;
+import io.jsonwebtoken.Claims;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.web.bind.annotation.*;
+
+/**
+ * Exposes RESTful endpoints for managing granular maintenance tasks and technician status logs.
+ */
+@RestController
+@RequestMapping("/api/v1/tasks")
+@Tag(name = "Tasks", description = "Endpoints for granular maintenance tasks")
+public class TasksController {
+
+    private final TaskCommandService taskCommandService;
+    private final TaskQueryService taskQueryService;
+    private final WorkOrderQueryService workOrderQueryService;
+
+    public TasksController(TaskCommandService taskCommandService, TaskQueryService taskQueryService, WorkOrderQueryService workOrderQueryService) {
+        this.taskCommandService = taskCommandService;
+        this.taskQueryService = taskQueryService;
+        this.workOrderQueryService = workOrderQueryService;
+    }
+
+    private String getAuthenticatedWorkshopId() {
+        var auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null && auth.getCredentials() instanceof Claims claims) {
+            return claims.get("workshopId", String.class);
+        }
+        return null;
+    }
+
+    @PostMapping
+    public ResponseEntity<?> createTask(@Valid @RequestBody CreateTaskResource resource) {
+        var command = new CreateTaskCommand(
+                resource.workOrderId(),
+                resource.mechanicId(),
+                resource.description(),
+                resource.priority(),
+                resource.estimatedTime(),
+                resource.laborPrice()
+        );
+        var result = taskCommandService.handle(command);
+        return ResponseEntity.status(HttpStatus.CREATED).body(result);
+    }
+
+    @GetMapping
+    public ResponseEntity<?> getTasks(@RequestParam(required = false) Long workOrderId, @RequestParam(required = false) Long mechanicId) {
+        String workshopId = getAuthenticatedWorkshopId();
+        if (workshopId == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+
+        if (workOrderId != null) {
+            return ResponseEntity.ok(taskQueryService.handle(new GetTasksByWorkOrderIdQuery(workOrderId)));
+        } else if (mechanicId != null) {
+            return ResponseEntity.ok(taskQueryService.handle(new GetTasksByMechanicIdQuery(mechanicId)));
+        } else {
+            var allTasks = taskQueryService.handle(new GetAllTasksQuery());
+            var validWorkOrders = workOrderQueryService.handle(new GetWorkOrdersByWorkshopIdQuery(workshopId))
+                    .stream().map(wo -> wo.getId()).toList();
+            var filteredTasks = allTasks.stream().filter(t -> validWorkOrders.contains(t.getWorkOrderId())).toList();
+            return ResponseEntity.ok(filteredTasks);
+        }
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<?> updateTask(@PathVariable Long id, @Valid @RequestBody UpdateTaskResource resource) {
+        var command = new UpdateTaskCommand(
+                id,
+                resource.description(),
+                resource.status(),
+                resource.priority(),
+                resource.estimatedTime(),
+                resource.laborPrice(),
+                resource.mechanicId()
+        );
+        var result = taskCommandService.handle(command);
+        return result.map(ResponseEntity::ok).orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
+    @PatchMapping("/{id}")
+    public ResponseEntity<?> patchTask(@PathVariable Long id, @RequestBody PatchTaskResource resource) {
+        var command = new PatchTaskCommand(
+                id,
+                resource.status(),
+                resource.technicalDiagnosis(),
+                resource.customerExplanation(),
+                resource.internalObservation(),
+                resource.evidenceRegistered(),
+                resource.adminReviewStatus()
+        );
+        var result = taskCommandService.handle(command);
+        return result.map(ResponseEntity::ok).orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<?> deleteTask(@PathVariable Long id) {
+        taskCommandService.handle(new DeleteTaskCommand(id));
+        return ResponseEntity.noContent().build();
+    }
+}
+
+===== src/main/java/com/autoserviceos/api/workshopoperations/interfaces/rest/WorkOrdersController.java =====
+package com.autoserviceos.api.workshopoperations.interfaces.rest;
+
+import com.autoserviceos.api.workshopoperations.application.commands.*;
+import com.autoserviceos.api.workshopoperations.application.commandservices.WorkOrderCommandService;
+import com.autoserviceos.api.workshopoperations.application.queries.*;
+import com.autoserviceos.api.workshopoperations.application.queryservices.WorkOrderQueryService;
+import com.autoserviceos.api.workshopoperations.interfaces.rest.resources.*;
+import io.jsonwebtoken.Claims;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.web.bind.annotation.*;
+
+/**
+ * Exposes RESTful endpoints for initiating maintenance folders and checklist tracking.
+ */
+@RestController
+@RequestMapping("/api/v1/work-orders")
+@Tag(name = "Work Orders", description = "Endpoints for managing vehicle maintenance folders")
+public class WorkOrdersController {
+
+    private final WorkOrderCommandService commandService;
+    private final WorkOrderQueryService queryService;
+
+    public WorkOrdersController(WorkOrderCommandService commandService, WorkOrderQueryService queryService) {
+        this.commandService = commandService;
+        this.queryService = queryService;
+    }
+
+    private String getAuthenticatedWorkshopId() {
+        var auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null && auth.getCredentials() instanceof Claims claims) {
+            return claims.get("workshopId", String.class);
+        }
+        return null;
+    }
+
+    @PostMapping
+    public ResponseEntity<?> createWorkOrder(@Valid @RequestBody CreateWorkOrderResource resource) {
+        String tenantId = getAuthenticatedWorkshopId();
+        if (tenantId == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+
+        var command = new CreateWorkOrderCommand(
+                tenantId,
+                resource.vehicleId(),
+                resource.customerId(),
+                resource.mechanicId(),
+                resource.description(),
+                resource.estimatedDate()
+        );
+        var result = commandService.handle(command);
+        return ResponseEntity.status(HttpStatus.CREATED).body(result);
+    }
+
+    @GetMapping
+    public ResponseEntity<?> getWorkOrders() {
+        String tenantId = getAuthenticatedWorkshopId();
+        var workOrders = queryService.handle(new GetWorkOrdersByWorkshopIdQuery(tenantId));
+        return ResponseEntity.ok(workOrders);
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<?> getWorkOrder(@PathVariable Long id) {
+        var workOrder = queryService.handle(new GetWorkOrderByIdQuery(id));
+        return workOrder.map(ResponseEntity::ok).orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<?> updateWorkOrder(@PathVariable Long id, @Valid @RequestBody UpdateWorkOrderResource resource) {
+        var command = new UpdateWorkOrderCommand(
+                id,
+                resource.description(),
+                resource.estimatedDate(),
+                resource.price(),
+                resource.status(),
+                resource.tasksCompleted(),
+                resource.sparePartsChecked(),
+                resource.diagnosisValidated(),
+                resource.cleaningDone(),
+                resource.finalTestDone()
+        );
+        var result = commandService.handle(command);
+        return result.map(ResponseEntity::ok).orElseGet(() -> ResponseEntity.notFound().build());
+    }
+}
+
+===== src/main/java/com/autoserviceos/api/workshopoperations/interfaces/rest/resources/CreateTaskResource.java =====
+package com.autoserviceos.api.workshopoperations.interfaces.rest.resources;
+
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import java.math.BigDecimal;
+
+/**
+ * Data transfer object payload required to instantiate and register an execution task.
+ */
+public record CreateTaskResource(
+        @NotNull Long workOrderId,
+        Long mechanicId,
+        @NotBlank String description,
+        @NotBlank String priority,
+        @NotNull @Min(1) Integer estimatedTime,
+        @NotNull @Min(0) BigDecimal laborPrice
+) {}
+
+===== src/main/java/com/autoserviceos/api/workshopoperations/interfaces/rest/resources/CreateWorkOrderResource.java =====
+package com.autoserviceos.api.workshopoperations.interfaces.rest.resources;
+
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+
+/**
+ * Input resource blueprint for creating a new vehicle service entry order.
+ */
+public record CreateWorkOrderResource(
+        @NotNull Long vehicleId,
+        @NotNull Long customerId,
+        @NotNull Long mechanicId,
+        @NotBlank String description,
+        @NotBlank String estimatedDate
+) {}
+
+===== src/main/java/com/autoserviceos/api/workshopoperations/interfaces/rest/resources/PatchTaskResource.java =====
+package com.autoserviceos.api.workshopoperations.interfaces.rest.resources;
+
+/**
+ * Envelope structure carrying delta metrics properties used to patch technical data updates.
+ */
+public record PatchTaskResource(
+        String status,
+        String technicalDiagnosis,
+        String customerExplanation,
+        String internalObservation,
+        String evidenceRegistered,
+        String adminReviewStatus
+) {}
+
+===== src/main/java/com/autoserviceos/api/workshopoperations/interfaces/rest/resources/UpdateTaskResource.java =====
+package com.autoserviceos.api.workshopoperations.interfaces.rest.resources;
+
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import java.math.BigDecimal;
+
+/**
+ * DTO carrying full structural parameter state updates for an active task row.
+ */
+public record UpdateTaskResource(
+        @NotBlank String description,
+        @NotBlank String status,
+        @NotBlank String priority,
+        @NotNull @Min(1) Integer estimatedTime,
+        @NotNull @Min(0) BigDecimal laborPrice,
+        Long mechanicId
+) {}
+
+===== src/main/java/com/autoserviceos/api/workshopoperations/interfaces/rest/resources/UpdateWorkOrderResource.java =====
+package com.autoserviceos.api.workshopoperations.interfaces.rest.resources;
+
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import java.math.BigDecimal;
+
+/**
+ * Resource blueprint containing data alterations for updating an active work order folder.
+ */
+public record UpdateWorkOrderResource(
+        @NotBlank String description,
+        @NotBlank String estimatedDate,
+        @NotNull BigDecimal price,
+        @NotBlank String status,
+        @NotNull Boolean tasksCompleted,
+        @NotNull Boolean sparePartsChecked,
+        @NotNull Boolean diagnosisValidated,
+        @NotNull Boolean cleaningDone,
+        @NotNull Boolean finalTestDone
+) {}
+
+===== src/test/java/com/autoserviceos/api/ApplicationTests.java =====
+package com.autoserviceos.api;
+
+import org.junit.jupiter.api.Test;
+import org.springframework.boot.test.context.SpringBootTest;
+
+@SpringBootTest
+class ApplicationTests {
+
+    @Test
+    void contextLoads() {
+    }
+
+}
+
+

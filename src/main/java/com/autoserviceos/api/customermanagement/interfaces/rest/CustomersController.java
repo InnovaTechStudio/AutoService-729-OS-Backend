@@ -13,6 +13,8 @@ import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import io.jsonwebtoken.Claims;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 /**
  * Exposes RESTful endpoints for managing customers within the API.
@@ -30,12 +32,12 @@ public class CustomersController {
         this.customerQueryService = customerQueryService;
     }
 
-    /**
-     * Temporary helper to simulate the authenticated user's Workshop ID.
-     * To be replaced when IAM module is integrated.
-     */
     private String getAuthenticatedWorkshopId() {
-        return "WS-1";
+        var authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication != null && authentication.getCredentials() instanceof Claims claims) {
+            return claims.get("workshopId", String.class);
+        }
+        return null;
     }
 
     @PostMapping

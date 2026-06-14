@@ -33,18 +33,39 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
 
-        String token = getJwtFromRequest(request);
+        try {
+            String token = getJwtFromRequest(request);
 
-        if (StringUtils.hasText(token) && tokenProvider.validateToken(token)) {
-            Claims claims = tokenProvider.getClaimsFromToken(token);
-            String username = claims.getSubject();
-            String role = claims.get("role", String.class);
+            if (StringUtils.hasText(token)) {
+                System.out.println("[JWT FILTER] Token recibido en backend correctamente.");
 
-            // Create security authorization identity context wrapper containing custom claims
-            var authorities = Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + role.toUpperCase()));
-            var authentication = new UsernamePasswordAuthenticationToken(username, claims, authorities);
+                boolean isValid = tokenProvider.validateToken(token);
+                System.out.println("[JWT FILTER] ¿El token pasó la validación de firma/expiración?: " + isValid);
 
-            SecurityContextHolder.getContext().setAuthentication(authentication);
+                if (isValid) {
+                    Claims claims = tokenProvider.getClaimsFromToken(token);
+                    String username = claims.getSubject();
+
+                    String role = claims.get("role", String.class);
+                    System.out.println("[JWT FILTER] Usuario extraído: " + username + " | Rol extraído: " + role);
+
+                    if (role == null) {
+                        System.out.println("[JWT FILTER] ADVERTENCIA: El token no contiene un claim llamado 'role'. Usando 'USER' por defecto para evitar caídas.");
+                        role = "USER";
+                    }
+
+                    var authorities = Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + role.toUpperCase()));
+                    var authentication = new UsernamePasswordAuthenticationToken(username, claims, authorities);
+
+                    SecurityContextHolder.getContext().setAuthentication(authentication);
+                    System.out.println("[JWT FILTER] Autenticación inyectada con éxito en el contexto de Spring.");
+                } else {
+                    System.out.println("[JWT FILTER] El token es inválido (Expirado o firma incorrecta).");
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("[JWT FILTER] Error crítico procesando el token: " + e.getMessage());
+            e.printStackTrace();
         }
 
         filterChain.doFilter(request, response);
