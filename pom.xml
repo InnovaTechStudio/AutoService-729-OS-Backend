@@ -10,7 +10,7 @@
     </parent>
     <groupId>com.autoserviceos</groupId>
     <artifactId>api</artifactId>
-    <version>1.0.1</version>
+    <version>0.0.1-SNAPSHOT</version>
     <name>AutoServiceOS.API</name>
     <description>AutoServiceOS.API</description>
     <url/>
