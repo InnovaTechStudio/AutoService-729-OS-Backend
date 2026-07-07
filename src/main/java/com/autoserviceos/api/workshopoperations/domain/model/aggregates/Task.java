@@ -39,7 +39,7 @@ public class Task {
     }
 
     public static Task create(Long workOrderId, Long mechanicId, String description, String priority, Integer estimatedTime, BigDecimal laborPrice) {
-        return new Task(null, workOrderId, mechanicId, description, "PENDING", priority, estimatedTime, laborPrice, "", "", "", "", "");
+        return new Task(null, workOrderId, mechanicId, description, "PENDING", priority, estimatedTime, laborPrice, "", "", "", "", "PENDING");
     }
 
     public static Task rehydrate(Long id, Long workOrderId, Long mechanicId, String description, String status, String priority, Integer estimatedTime, BigDecimal laborPrice,
