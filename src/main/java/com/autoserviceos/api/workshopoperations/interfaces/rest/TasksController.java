@@ -48,7 +48,8 @@ public class TasksController {
                 resource.description(),
                 resource.priority(),
                 resource.estimatedTime(),
-                resource.laborPrice()
+                resource.laborPrice(),
+                resource.technicalDiagnosis()
         );
         var result = taskCommandService.handle(command);
         return ResponseEntity.status(HttpStatus.CREATED).body(result);

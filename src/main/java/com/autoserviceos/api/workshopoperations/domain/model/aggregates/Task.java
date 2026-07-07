@@ -38,8 +38,8 @@ public class Task {
         this.adminReviewStatus = adminReviewStatus;
     }
 
-    public static Task create(Long workOrderId, Long mechanicId, String description, String priority, Integer estimatedTime, BigDecimal laborPrice) {
-        return new Task(null, workOrderId, mechanicId, description, "PENDING", priority, estimatedTime, laborPrice, "", "", "", "", "PENDING");
+    public static Task create(Long workOrderId, Long mechanicId, String description, String priority, Integer estimatedTime, BigDecimal laborPrice, String technicalDiagnosis) {
+        return new Task(null, workOrderId, mechanicId, description, "PENDING", priority, estimatedTime, laborPrice, technicalDiagnosis != null ? technicalDiagnosis : "", "", "", "", "PENDING");
     }
 
     public static Task rehydrate(Long id, Long workOrderId, Long mechanicId, String description, String status, String priority, Integer estimatedTime, BigDecimal laborPrice,

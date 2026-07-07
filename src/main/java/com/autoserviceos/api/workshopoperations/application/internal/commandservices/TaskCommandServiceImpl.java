@@ -23,7 +23,7 @@ public class TaskCommandServiceImpl implements TaskCommandService {
     @Transactional
     public Task handle(CreateTaskCommand command) {
         var task = Task.create(command.workOrderId(), command.mechanicId(), command.description(),
-                command.priority(), command.estimatedTime(), command.laborPrice());
+                command.priority(), command.estimatedTime(), command.laborPrice(), command.technicalDiagnosis());
         return taskRepository.save(task);
     }
 

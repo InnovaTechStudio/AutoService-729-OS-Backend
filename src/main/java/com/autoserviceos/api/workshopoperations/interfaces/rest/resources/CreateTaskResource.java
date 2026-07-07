@@ -14,5 +14,6 @@ public record CreateTaskResource(
         @NotBlank String description,
         @NotBlank String priority,
         @NotNull @Min(1) Integer estimatedTime,
-        @NotNull @Min(0) BigDecimal laborPrice
+        @NotNull @Min(0) BigDecimal laborPrice,
+        String technicalDiagnosis
 ) {}
