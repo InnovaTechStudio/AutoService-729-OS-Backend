@@ -55,7 +55,14 @@ public class WorkOrdersController {
     }
 
     @GetMapping
-    public ResponseEntity<?> getWorkOrders() {
+    public ResponseEntity<?> getWorkOrders(@RequestParam(required = false) String trackingCode) {
+        if (trackingCode != null && !trackingCode.isBlank()) {
+            var match = queryService.handle(new GetAllWorkOrdersQuery()).stream()
+                    .filter(o -> trackingCode.equalsIgnoreCase(o.getTrackingCode()))
+                    .toList();
+            return ResponseEntity.ok(match);
+        }
+
         String tenantId = getAuthenticatedWorkshopId();
         var workOrders = queryService.handle(new GetWorkOrdersByWorkshopIdQuery(tenantId));
         return ResponseEntity.ok(workOrders);

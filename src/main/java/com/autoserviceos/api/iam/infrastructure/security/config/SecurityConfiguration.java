@@ -57,6 +57,8 @@ public class SecurityConfiguration {
 
                         .requestMatchers(HttpMethod.GET, "/api/v1/inventory/**").permitAll()
 
+                        .requestMatchers("/api/v1/tracking/**").permitAll()
+
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
 
                         .anyRequest().authenticated()
