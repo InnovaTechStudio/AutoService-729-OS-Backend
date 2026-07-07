@@ -32,6 +32,15 @@ public class WorkOrderCommandServiceImpl implements WorkOrderCommandService {
     }
 
     @Transactional
+    public Optional<WorkOrder> handle(PatchWorkOrderCommand command) {
+        var result = repository.findById(command.id());
+        if (result.isEmpty()) return Optional.empty();
+        var workOrder = result.get();
+        workOrder.updateStatus(command.status());
+        return Optional.of(repository.save(workOrder));
+    }
+
+    @Transactional
     public void handle(DeleteWorkOrderCommand command) {
         repository.findById(command.id()).ifPresent(repository::delete);
     }

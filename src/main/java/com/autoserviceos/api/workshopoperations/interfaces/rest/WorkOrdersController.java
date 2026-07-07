@@ -84,4 +84,11 @@ public class WorkOrdersController {
         var result = commandService.handle(command);
         return result.map(ResponseEntity::ok).orElseGet(() -> ResponseEntity.notFound().build());
     }
+
+    @PatchMapping("/{id}")
+    public ResponseEntity<?> patchWorkOrder(@PathVariable Long id, @RequestBody PatchWorkOrderResource resource) {
+        var command = new PatchWorkOrderCommand(id, resource.status());
+        var result = commandService.handle(command);
+        return result.map(ResponseEntity::ok).orElseGet(() -> ResponseEntity.notFound().build());
+    }
 }

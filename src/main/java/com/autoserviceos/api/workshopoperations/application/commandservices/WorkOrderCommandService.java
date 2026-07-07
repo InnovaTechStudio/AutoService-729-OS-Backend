@@ -7,5 +7,6 @@ import java.util.Optional;
 public interface WorkOrderCommandService {
     WorkOrder handle(CreateWorkOrderCommand command);
     Optional<WorkOrder> handle(UpdateWorkOrderCommand command);
+    Optional<WorkOrder> handle(PatchWorkOrderCommand command);
     void handle(DeleteWorkOrderCommand command);
 }
